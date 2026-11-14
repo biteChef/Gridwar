@@ -1,0 +1,517 @@
+/* Gridwar landing-page refresh.
+   Deliberately scoped to #beginScreen so gameplay and skin screens retain
+   Splix's original styling and behavior. */
+
+#beginScreen {
+	box-sizing: border-box;
+	min-height: 100vh;
+	padding: 22px 20px 70px;
+	color: #f3fbf2;
+	background:
+		radial-gradient(ellipse 430px 330px at 14% 14%, rgba(65, 139, 67, 0.14), transparent 75%),
+		radial-gradient(ellipse 500px 360px at 86% 16%, rgba(48, 106, 65, 0.12), transparent 80%),
+		linear-gradient(180deg, #37332e 0%, #2f302b 52%, #292b28 100%);
+}
+
+#beginScreen .landing-hero {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0;
+	margin: 0 auto 22px;
+}
+
+#beginScreen #logoCanvas {
+	display: block;
+	max-width: 100%;
+	margin: 0 auto;
+}
+
+#beginScreen .landing-subtitle {
+	margin: -5px 0 0;
+	color: #c6d7c4;
+	font-size: 14px;
+	line-height: 1.5;
+	letter-spacing: 0.025em;
+}
+
+#beginScreen #notification {
+	max-width: 440px;
+	margin: 0 auto 18px;
+	padding: 12px 15px;
+	border: 1px solid #d47878;
+	border-radius: 10px;
+	background: #502d30;
+	color: #fff0f0;
+	font-size: 14px;
+	text-shadow: none;
+}
+
+#beginScreen #lastStats,
+#beginScreen #bestStats {
+	width: min(100%, 430px);
+	box-sizing: border-box;
+	margin: 8px auto;
+	padding: 10px 16px;
+	border: 1px solid rgba(181, 216, 172, 0.18);
+	border-radius: 10px;
+	background: rgba(13, 33, 20, 0.45);
+	font-size: 13px;
+}
+
+#beginScreen #mainMenu {
+	display: grid;
+	grid-template-columns: 300px minmax(0, 360px) 300px;
+	grid-template-areas: "advertisement play updates";
+	justify-content: center;
+	align-items: start;
+	gap: 28px;
+	width: min(100%, 1080px);
+	margin: 0 auto;
+}
+
+#beginScreen #centerSection {
+	grid-area: play;
+	min-width: 0;
+}
+
+#beginScreen #nameForm {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	margin: 0;
+	padding: 28px;
+	text-align: left;
+	border: 1px solid #4b9158;
+	border-radius: 17px;
+	background: linear-gradient(160deg, #216132 0%, #1c542c 48%, #194424 100%);
+	box-shadow: 0 3px 0 #12351b, 0 22px 48px rgba(0, 0, 0, 0.28);
+}
+
+#beginScreen .menu-eyebrow {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: #d3ebd1;
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.15em;
+	text-transform: uppercase;
+}
+
+#beginScreen .menu-live-indicator {
+	display: inline-block;
+	width: 8px;
+	height: 8px;
+	flex: none;
+	border-radius: 100%;
+	background: #9cf6a6;
+	box-shadow: 0 0 0 4px rgba(156, 246, 166, 0.12);
+}
+
+#beginScreen #nameForm h1 {
+	margin: 17px 0 7px;
+	color: #fff;
+	font-size: clamp(25px, 3vw, 30px);
+	font-weight: 800;
+	letter-spacing: -0.035em;
+	line-height: 1.2;
+}
+
+#beginScreen .menu-description {
+	margin: 0 0 24px;
+	color: #c5dfc8;
+	font-size: 13px;
+	line-height: 1.6;
+}
+
+#beginScreen .menu-field-label {
+	margin-bottom: 9px;
+	color: #e0eee0;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.1em;
+	text-transform: uppercase;
+}
+
+#beginScreen #nameForm .inputFancy,
+#beginScreen #nameForm .fancyBtn {
+	position: static;
+	box-sizing: border-box;
+	display: block;
+	width: 100%;
+	height: 47px;
+	margin: 0 0 18px;
+	padding: 0 14px;
+	border: 1px solid transparent;
+	border-radius: 9px;
+	font-family: inherit;
+	font-size: 15px;
+	line-height: 1.3;
+	box-shadow: none;
+	transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+#beginScreen #nameForm #nameInput {
+	background: #f7faf7;
+	color: #1b3021;
+}
+
+#beginScreen #nameForm #nameInput::placeholder {
+	color: #859288;
+}
+
+#beginScreen #nameForm #serverSelect {
+	background: #174923 url("./img/arrowD.svg") no-repeat right 10px center;
+	background-size: 25px;
+	border-color: rgba(170, 225, 178, 0.36);
+	color: #f7fff7;
+	padding-right: 42px;
+	cursor: pointer;
+}
+
+#beginScreen #nameForm #serverSelect:disabled {
+	color: #bfd8c2;
+	cursor: progress;
+	opacity: 0.75;
+}
+
+#beginScreen #nameForm #nameInput:focus-visible,
+#beginScreen #nameForm #serverSelect:focus-visible,
+#beginScreen #nameForm #joinButton:focus-visible {
+	outline: 3px solid rgba(173, 253, 164, 0.82);
+	outline-offset: 3px;
+}
+
+#beginScreen #nameForm #joinButton {
+	margin: 7px 0 0;
+	background: #54d66d;
+	color: #10341b;
+	font-size: 17px;
+	font-weight: 800;
+	letter-spacing: 0.01em;
+	cursor: pointer;
+}
+
+#beginScreen #nameForm #joinButton:hover:not(:disabled) {
+	background: #76ef89;
+	box-shadow: 0 6px 18px rgba(12, 36, 15, 0.24);
+}
+
+#beginScreen #nameForm #joinButton:active:not(:disabled) {
+	background: #3fc35c;
+	box-shadow: none;
+}
+
+#beginScreen #nameForm #joinButton:disabled {
+	background: #3c8850;
+	color: #d2e8d6;
+	opacity: 0.75;
+	cursor: not-allowed;
+}
+
+#beginScreen .menu-controls-hint {
+	margin-top: 17px;
+	color: #b7d6bc;
+	text-align: center;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+#beginScreen .menu-controls-hint strong {
+	color: #ecf7ed;
+	font-weight: 700;
+}
+
+#beginScreen .tutorial-panel {
+	margin-top: 24px;
+	text-align: center;
+}
+
+#beginScreen .section-eyebrow {
+	display: block;
+	margin-bottom: 10px;
+	color: #a7bfa7;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.13em;
+	text-transform: uppercase;
+}
+
+#beginScreen #tutorialText {
+	margin: 8px 0 0;
+	color: #e5f4e6;
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+#beginScreen #tutorialCanvas {
+	display: block;
+	width: min(300px, 100%);
+	height: auto;
+	margin: 15px auto 0;
+	border: 1px solid rgba(161, 187, 151, 0.25);
+	border-radius: 14px;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+}
+
+/* Keep the original AdLad #adboxContainer and #adboxContent intact.
+   A visible empty-state marks the 300x250 space until real creative loads. */
+#beginScreen #sponsorRail {
+	grid-area: advertisement;
+	width: 300px;
+	margin: 22px 0 0;
+	text-align: left;
+}
+
+#beginScreen .ad-slot-label {
+	margin-bottom: 10px;
+	color: #afc2ac;
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+#beginScreen .ad-slot-frame {
+	position: relative;
+	width: 300px;
+	height: 250px;
+}
+
+#beginScreen #adboxContainer {
+	position: absolute;
+	z-index: 2;
+	inset: 0;
+	box-sizing: border-box;
+	width: 300px;
+	height: 250px;
+	margin: 0;
+	padding: 0;
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+}
+
+#beginScreen #adboxContent {
+	width: 300px;
+	height: 250px;
+}
+
+#beginScreen #adboxContainer:not([style*="none"]) ~ .ad-slot-placeholder {
+	visibility: hidden;
+}
+
+#beginScreen .ad-slot-placeholder {
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	width: 100%;
+	height: 100%;
+	border: 1px dashed rgba(176, 208, 178, 0.30);
+	border-radius: 14px;
+	background: rgba(16, 29, 18, 0.27);
+	color: #b4c9b5;
+	font-size: 14px;
+	text-align: center;
+}
+
+#beginScreen .ad-slot-placeholder .ad-tile-mark {
+	display: grid;
+	grid-template-columns: repeat(2, 12px);
+	gap: 4px;
+	transform: rotate(-10deg);
+}
+
+#beginScreen .ad-slot-placeholder .ad-tile-mark i {
+	display: block;
+	width: 12px;
+	height: 12px;
+	border-radius: 3px;
+	background: #5e8d64;
+}
+
+#beginScreen .ad-slot-placeholder .ad-tile-mark i:nth-child(2) { background: #85af75; }
+#beginScreen .ad-slot-placeholder .ad-tile-mark i:nth-child(3) { background: #4f7058; }
+#beginScreen .ad-slot-placeholder .ad-tile-mark i:nth-child(4) { background: #6d9f6e; }
+
+#beginScreen .ad-slot-placeholder small {
+	color: #7f9783;
+	font-size: 11px;
+	letter-spacing: 0.035em;
+}
+
+#beginScreen .ad-slot-footnote {
+	margin-top: 11px;
+	color: #8da28e;
+	font-size: 11px;
+	text-align: center;
+}
+
+#beginScreen #newsbox {
+	grid-area: updates;
+	box-sizing: border-box;
+	width: 300px;
+	max-height: 435px;
+	margin-top: 22px;
+	padding: 18px 20px;
+	overflow-y: auto;
+	border: 1px solid rgba(154, 204, 157, 0.28);
+	border-radius: 14px;
+	background: rgba(28, 81, 39, 0.83);
+	box-shadow: 0 14px 30px rgba(0, 0, 0, 0.17);
+	color: #e4f1e5;
+	font-size: 12px;
+	line-height: 1.6;
+	scrollbar-color: #578966 rgba(23, 55, 29, 0.65);
+	scrollbar-width: thin;
+}
+
+#beginScreen #newsbox h1 {
+	margin: 1px 0 18px;
+	color: #fff;
+	font-size: 19px;
+	line-height: 1.3;
+}
+
+#beginScreen #newsbox h3 {
+	margin: 15px 0 4px;
+	color: #f2fff2;
+	font-size: 13px;
+}
+
+#beginScreen #newsbox p {
+	margin: 6px 0 10px;
+}
+
+#beginScreen #newsbox a {
+	color: #baf3bc;
+}
+
+#beginScreen .wide-ad-slot {
+	box-sizing: border-box;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 20px;
+	width: min(728px, 100%);
+	min-height: 90px;
+	margin: 30px auto 0;
+	padding: 14px;
+	border: 1px dashed rgba(176, 208, 178, 0.25);
+	border-radius: 12px;
+	background: rgba(16, 29, 18, 0.18);
+	color: #98b19a;
+}
+
+#beginScreen .wide-ad-slot span {
+	color: #a9c2ab;
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.13em;
+}
+
+#beginScreen .wide-ad-slot strong {
+	color: #748f78;
+	font-size: 12px;
+	font-weight: 500;
+}
+
+#beginScreen #cornerLinks {
+	top: 14px;
+	right: 18px;
+	padding: 8px 12px;
+	border: 1px solid rgba(164, 193, 159, 0.18);
+	border-radius: 10px;
+	background: rgba(19, 34, 20, 0.32);
+	color: #d9e7d9;
+	font-size: 12px;
+	line-height: 1.8;
+}
+
+#beginScreen #cornerLinks > a {
+	color: #d9e7d9;
+}
+
+@media (max-width: 1110px) {
+	#beginScreen #mainMenu {
+		grid-template-columns: minmax(0, 360px);
+		grid-template-areas: "play" "advertisement";
+		gap: 8px;
+	}
+
+	#beginScreen #sponsorRail {
+		margin: 28px auto 0;
+	}
+
+	#beginScreen #newsbox {
+		display: none;
+	}
+}
+
+@media (max-width: 750px) {
+	#beginScreen {
+		padding: 12px 16px 50px;
+	}
+
+	#beginScreen .landing-hero {
+		margin-bottom: 18px;
+	}
+
+	#beginScreen .landing-subtitle {
+		max-width: 320px;
+		margin-top: -9px;
+		font-size: 12px;
+	}
+
+	#beginScreen #nameForm {
+		padding: 23px 21px;
+	}
+
+	#beginScreen #sponsorRail {
+		display: none;
+	}
+
+	#beginScreen .wide-ad-slot {
+		margin-top: 27px;
+		min-height: 76px;
+		gap: 10px;
+	}
+
+	#beginScreen .wide-ad-slot strong {
+		font-size: 10px;
+	}
+
+	#beginScreen #cornerLinks {
+		position: relative;
+		top: auto;
+		right: auto;
+		display: flex;
+		flex-wrap: wrap;
+		justify-content: center;
+		gap: 3px 12px;
+		max-width: 360px;
+		margin: 25px auto 0;
+		padding: 10px;
+		text-align: center;
+	}
+
+	#beginScreen #cornerLinks > a {
+		margin: 0;
+	}
+
+	#beginScreen #cornerLinks br {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	#beginScreen #nameForm .inputFancy,
+	#beginScreen #nameForm .fancyBtn {
+		transition: none;
+	}
+}

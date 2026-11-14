@@ -5,6 +5,7 @@
 		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 		<meta content="utf-8" http-equiv="encoding">
 		<link rel="stylesheet" href="./static/style.css" />
+		<link rel="stylesheet" href="./static/landing.css" />
 		<script type="module" src="./src/main.js"></script>
 		<meta name="viewport" content="width=device-width, initial-scale=0.8, maximum-scale=0.8, user-scalable=no" />
 		<meta
@@ -84,8 +85,10 @@
 	<body ontouchstart="">
 		<div id="touchControls" style="display: none"></div>
 		<div id="beginScreen">
-			<canvas id="logoCanvas"></canvas>
-			<br>
+			<header class="landing-hero">
+				<canvas id="logoCanvas" aria-label="Splix game logo"></canvas>
+				<p class="landing-subtitle">Claim territory. Outsmart rivals. Reach the top.</p>
+			</header>
 			<div id="notification" style="display: none"></div>
 			<div id="lastStats" style="display: none">
 				<div id="lastStatsLeft" class="lastStatsBlock" style="text-align: right">Last game:</div>
@@ -96,27 +99,48 @@
 				<div id="bestStatsRight" class="lastStatsBlock" style="text-align: left"></div>
 			</div>
 			<main id="mainMenu">
-				<div id="adboxContainer" class="fancyBox greenBox" style="display: none">
-					<button class="remove-ads-button">Don't want to see ads?</button>
-					<div id="adboxContent"></div>
-				</div>
+				<aside id="sponsorRail" aria-label="Advertisement placement">
+					<div class="ad-slot-label">Advertisement</div>
+					<div class="ad-slot-frame">
+						<!-- Existing Splix banner integration: preserve these IDs for AdLad. -->
+						<div id="adboxContainer" class="fancyBox greenBox" style="display: none">
+							<button class="remove-ads-button">Don't want to see ads?</button>
+							<div id="adboxContent"></div>
+						</div>
+						<div class="ad-slot-placeholder" aria-hidden="true">
+							<span class="ad-tile-mark"><i></i><i></i><i></i><i></i></span>
+							<span>Advertising space</span>
+							<small>300 × 250</small>
+						</div>
+					</div>
+					<p class="ad-slot-footnote">Reserved for future sponsors</p>
+				</aside>
 				<div id="centerSection">
 					<form id="nameForm" class="fancyBox greenBox" method="get">
+						<div class="menu-eyebrow"><span class="menu-live-indicator"></span> Multiplayer territory game</div>
+						<h1>Ready to play?</h1>
+						<p class="menu-description">Choose a name and server, then claim as much territory as you can.</p>
+						<label for="nameInput" class="menu-field-label">Player name</label>
 						<input
 							type="text"
 							class="fancyBox inputFancy"
 							maxlength="20"
 							id="nameInput"
 							placeholder="Enter your name"
+							autocomplete="nickname"
 						/>
-						<br>
+						<label for="serverSelect" class="menu-field-label">Choose server</label>
 						<select id="serverSelect" disabled class="fancyBox inputFancy">
 							<option>Loading...</option>
 						</select>
-						<input type="submit" disabled class="fancyBox fancyBtn" id="joinButton" value="Join" />
+						<input type="submit" disabled class="fancyBox fancyBtn" id="joinButton" value="Play now" />
+						<div class="menu-controls-hint">Move with <strong>WASD</strong> or <strong>arrow keys</strong></div>
 					</form>
-					<div id="tutorialText" style="opacity: 0"></div>
-					<canvas id="tutorialCanvas" width="300" height="300"></canvas>
+					<div class="tutorial-panel">
+						<span class="section-eyebrow">How to play</span>
+						<div id="tutorialText" style="opacity: 0"></div>
+						<canvas id="tutorialCanvas" width="300" height="300"></canvas>
+					</div>
 				</div>
 				<div id="newsbox" class="fancyBox greenBox">
 					<h1>Recent updates!</h1>
@@ -282,8 +306,11 @@
 					</ul>
 				</div>
 			</main>
-			<br>
-			<br>
+			<!-- Future leaderboard ad placement. No ad is loaded here yet. -->
+			<div id="leaderboardAdSlot" class="wide-ad-slot" aria-label="Reserved leaderboard advertisement space">
+				<span>ADVERTISEMENT</span>
+				<strong>728 × 90 banner placement</strong>
+			</div>
 			<div id="expandPage"></div>
 			<canvas id="skinButton" title="block customization" width="30" height="30"></canvas>
 			<div id="skinButtonShadow"></div>

@@ -1,4 +1,5 @@
 import { refreshBanner, showFullScreenAd, updateAdlad } from "./ads.js";
+import { initAccountUI } from "./accountUI.js";
 import {
 	BLOCKS_ON_SCREEN,
 	DEFAULT_PROTOCOL_VERSION,
@@ -134,6 +135,7 @@ var lastClientsideMoves = [],
 	isRequestingMyTrail = false,
 	skipTrailRequestResponse = false;
 var mapSize = 2000, closedBecauseOfDeath = false, minimapCtx, beginScreenVisible = true, wsOnOpenTime;
+var speedBoosterPos = null;
 var minimapCanvas;
 var canvasQuality = 1,
 	currentDtCap = 0,
@@ -244,6 +246,8 @@ var receiveAction = {
 	UNDO_PLAYER_DIE: 22,
 	TEAM_LIFE_COUNT: 23,
 	PLAYER_IS_SPECTATOR: 24,
+	BOOST_LOCATION: 25,
+	PLAYER_BOOST: 26,
 };
 
 var sendAction = {
@@ -914,6 +918,8 @@ function getPlayer(id, array) {
 		},
 		moveRelativeToServerPosNextFrame: false, //if true, lastServerPosSentTime will be used instead of deltatime for one frame
 		lastServerPosSentTime: 0,
+		boostMultiplier: 1,
+		boostUntil: 0,
 		honkTimer: 0,
 		honkMaxTime: 0,
 		trails: [],
@@ -1423,6 +1429,7 @@ window.onload = function () {
 	setSpectatorText();
 
 	initTutorial();
+	initAccountUI();
 	initSkinScreen();
 	initTitle();
 	setLeaderboardVisibility();
@@ -1640,6 +1647,22 @@ function onMessage(evt) {
 	// console.log(evt);
 	var x, y, type, id, player, w, h, block, i, j, nameBytes;
 	var data = new Uint8Array(evt.data);
+	if (data[0] == receiveAction.BOOST_LOCATION) {
+		if (data.length < 2) return;
+		speedBoosterPos = data[1] == 1 && data.length >= 6
+			? { x: bytesToInt(data[2], data[3]), y: bytesToInt(data[4], data[5]) }
+			: null;
+		return;
+	}
+	if (data[0] == receiveAction.PLAYER_BOOST) {
+		if (data.length < 9) return;
+		const boostedPlayer = getPlayer(bytesToInt(data[1], data[2]));
+		const multiplier = bytesToInt(data[3], data[4]) / 1000;
+		const remainingMs = bytesToInt(data[5], data[6], data[7], data[8]);
+		boostedPlayer.boostMultiplier = remainingMs > 0 ? Math.max(1, Math.min(2, multiplier)) : 1;
+		boostedPlayer.boostUntil = remainingMs > 0 ? Date.now() + remainingMs : 0;
+		return;
+	}
 	// console.log(evt.data);
 	// for(var key in receiveAction){
 	// 	if(receiveAction[key] == data[0]){
@@ -1669,7 +1692,7 @@ function onMessage(evt) {
 		//add distance traveled during server delay (ping/2)
 		var posOffset = 0;
 		if (player.isMyPlayer || thisServerAvgPing > 50) {
-			posOffset = thisServerAvgPing / 2 * GLOBAL_SPEED;
+			posOffset = thisServerAvgPing / 2 * GLOBAL_SPEED * (player.boostUntil > Date.now() ? player.boostMultiplier : 1);
 		}
 		movePos(newPosOffset, newDir, posOffset);
 
@@ -2213,6 +2236,9 @@ function resetAll() {
 	isConnecting = false;
 	blocks = [];
 	players = [];
+	speedBoosterPos = null;
+	const boostHud = document.getElementById("speedBoostHud");
+	if (boostHud) boostHud.hidden = true;
 	camPosSet = false;
 	beginScreenVisible = true;
 	updateCmpPersistentLinkVisibility();
@@ -3619,6 +3645,50 @@ function drawTitle(ctx, time, isShadow, maxExtrude, extraShadow) {
 	}
 }
 
+// Draw the 2x2 power-up above ordinary map tiles. The surrounding game
+// graphics, original Splix tile renderer, and all mechanics remain intact.
+function drawSpeedBooster(ctx) {
+	if (!speedBoosterPos) return;
+	const { x, y } = speedBoosterPos;
+	if (Math.abs(x - camPos[0]) > VIEWPORT_RADIUS + 2 ||
+		Math.abs(y - camPos[1]) > VIEWPORT_RADIUS + 2) return;
+	const pulse = 0.86 + Math.sin(performance.now() * 0.005) * 0.14;
+	ctx.save();
+	ctx.fillStyle = "rgba(255, 195, 55, " + (0.3 * pulse) + ")";
+	ctx.strokeStyle = "#ffe180";
+	ctx.lineWidth = 0.6;
+	for (let dx = 0; dx < 2; dx++) {
+		for (let dy = 0; dy < 2; dy++) {
+			const px = (x + dx) * 10;
+			const py = (y + dy) * 10;
+			ctx.fillRect(px + 1, py + 1, 8, 8);
+			ctx.strokeRect(px + 1, py + 1, 8, 8);
+		}
+	}
+	// A simple vector lightning bolt, centered across the four-tile patch.
+	ctx.fillStyle = "#fff7c4";
+	ctx.beginPath();
+	ctx.moveTo(x * 10 + 11, y * 10 + 2);
+	ctx.lineTo(x * 10 + 6, y * 10 + 11);
+	ctx.lineTo(x * 10 + 10, y * 10 + 11);
+	ctx.lineTo(x * 10 + 9, y * 10 + 19);
+	ctx.lineTo(x * 10 + 15, y * 10 + 9);
+	ctx.lineTo(x * 10 + 11, y * 10 + 9);
+	ctx.closePath();
+	ctx.fill();
+	ctx.restore();
+}
+
+function updateSpeedBoostHud() {
+	const hud = document.getElementById("speedBoostHud");
+	if (!hud) return;
+	const remaining = myPlayer ? Math.max(0, myPlayer.boostUntil - Date.now()) : 0;
+	hud.hidden = remaining <= 0;
+	if (remaining > 0) {
+		document.getElementById("speedBoostTime").textContent = (remaining / 1000).toFixed(1) + "s";
+	}
+}
+
 //draws blocks on ctx
 export function drawBlocks(ctx, blocks, checkViewport) {
 	var t2;
@@ -4320,16 +4390,18 @@ function loop(timeStamp) {
 
 		//draw blocks
 		drawBlocks(ctx, blocks, true);
+		drawSpeedBooster(ctx);
+		updateSpeedBoostHud();
 
 		//players
-		var offset = deltaTime * GLOBAL_SPEED;
 		for (var playerI = 0; playerI < players.length; playerI++) {
 			var player = players[playerI];
+			var offset = deltaTime * GLOBAL_SPEED * (player.boostUntil > Date.now() ? player.boostMultiplier : 1);
 
 			//move player
 			if (!player.isDead || !player.deathWasCertain) {
 				if (player.moveRelativeToServerPosNextFrame) {
-					offset = (Date.now() - player.lastServerPosSentTime) * GLOBAL_SPEED;
+					offset = (Date.now() - player.lastServerPosSentTime) * GLOBAL_SPEED * (player.boostUntil > Date.now() ? player.boostMultiplier : 1);
 				}
 				if (player.isMyPlayer) {
 					movePos(player.serverPos, player.serverDir, offset);

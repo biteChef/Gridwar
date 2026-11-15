@@ -24,7 +24,7 @@ function normalizeUsername(value) {
 
 /** @param {unknown} value */
 function isValidUsername(value) {
-	return /^[a-zA-Z0-9_]{3,20}$/.test(value);
+	return typeof value == "string" && /^[a-zA-Z0-9_]{3,20}$/.test(value);
 }
 
 /** @param {unknown} value */

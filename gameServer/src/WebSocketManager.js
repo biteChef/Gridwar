@@ -17,6 +17,7 @@ export class WebSocketManager {
 	/**
 	 * @param {import("./Main.js").Main} mainInstance
 	 * @param {import("./gameplay/Game.js").Game} game
+	 * @param {import("./auth/AccountService.js").AccountService} accountService
 	 */
 	constructor(mainInstance, game, accountService) {
 		this.#hoster = new WebSocketHoster((socket, ip, account) => {

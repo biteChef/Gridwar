@@ -5,6 +5,7 @@
 		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 		<meta content="utf-8" http-equiv="encoding">
 		<link rel="stylesheet" href="./static/style.css" />
+		<link rel="stylesheet" href="./static/gridwar-features.css" />
 		<script type="module" src="./src/main.js"></script>
 		<meta name="viewport" content="width=device-width, initial-scale=0.8, maximum-scale=0.8, user-scalable=no" />
 		<meta
@@ -115,6 +116,12 @@
 						</select>
 						<input type="submit" disabled class="fancyBox fancyBtn" id="joinButton" value="Join" />
 					</form>
+					<div id="accountControls">
+						<p id="accountStatus">Play as a guest — no account needed.</p>
+						<button type="button" id="accountLogin">Log in</button>
+						<button type="button" id="accountRegister">Create account</button>
+						<button type="button" id="accountLogout" hidden>Log out</button>
+					</div>
 					<div id="tutorialText" style="opacity: 0"></div>
 					<canvas id="tutorialCanvas" width="300" height="300"></canvas>
 				</div>
@@ -299,6 +306,21 @@
 				<a id="spectatorText">Spectator mode: off</a>
 			</div>
 		</div>
+		<dialog id="accountDialog" aria-labelledby="accountDialogHeading">
+			<form id="accountForm" method="dialog">
+				<h2 id="accountDialogHeading">Create account</h2>
+				<p>Playing as a guest is always available. Accounts let you keep the same player identity.</p>
+				<label for="accountUsername">Username</label>
+				<input id="accountUsername" type="text" maxlength="20" minlength="3" autocomplete="username" pattern="[A-Za-z0-9_]{3,20}" required>
+				<label for="accountPassword">Password</label>
+				<input id="accountPassword" type="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+				<p id="accountError" role="alert" aria-live="polite"></p>
+				<div class="accountFormActions">
+					<button type="button" id="accountCancel">Cancel</button>
+					<button type="submit" id="accountSubmit" value="confirm">Create account</button>
+				</div>
+			</form>
+		</dialog>
 		<div id="skinScreen" style="display: none">
 			<div class="skinButtonContainer">
 				<div id="prevColor" class="skinButton skinButtonLeft"></div>
@@ -348,6 +370,7 @@
 			</div>
 			<div id="lifeBox"></div>
 			<div id="topNotifications"></div>
+			<div id="speedBoostHud" hidden>⚡ SPEED BOOST <span id="speedBoostTime"></span></div>
 		</div>
 		<canvas id="transitionCanvas" class="fullscreenCanvas" style="z-index: 1000; display: none"></canvas>
 		<canvas id="mainCanvas" class="fullscreenCanvas" style="z-index: -100; display: none"></canvas>

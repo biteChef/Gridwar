@@ -2,6 +2,7 @@
 
 import { lerp, SingleInstancePromise, Vec2 } from "renda";
 import { Arena } from "./Arena.js";
+import { SpeedBoostManager } from "./SpeedBoostManager.js";
 import { Player } from "./Player.js";
 import { WebSocketConnection } from "../WebSocketConnection.js";
 import {
@@ -27,6 +28,8 @@ export class Game {
 
 	#arena;
 	#gameMode;
+	/** @type {SpeedBoostManager} */
+	boostManager;
 	get gameMode() {
 		return this.#gameMode;
 	}
@@ -68,11 +71,13 @@ export class Game {
 		this.#mainInstance = mainInstance;
 		this.#gameMode = gameMode;
 		this.#arena = new Arena(arenaWidth, arenaHeight, pitWidth, pitHeight, gameMode);
+		this.boostManager = new SpeedBoostManager(this);
 		this.#arena.onRectFilled((rect, tileValue) => {
 			for (const player of this.getOverlappingViewportPlayersForRect(rect)) {
 				const { colorId, patternId } = this.getTileTypeForMessage(player, tileValue);
 				player.connection.sendFillRect(rect, colorId, patternId);
 			}
+			this.boostManager.onRectFilled(rect);
 		});
 
 		this.#updateNextMinimapPartInstance = new SingleInstancePromise(() => this.#updateNextMinimapPart());
@@ -94,6 +99,7 @@ export class Game {
 		for (const player of this.#players.values()) {
 			player.loop(now, dt);
 		}
+		this.boostManager.loop(this.boostClock());
 
 		if (now - this.#lastMinimapUpdateTime > MINIMAP_PART_UPDATE_FREQUENCY) {
 			this.#lastMinimapUpdateTime = now;
@@ -128,6 +134,22 @@ export class Game {
 
 	/** @type {Map<number, Player>} */
 	#players = new Map();
+
+	boostClock() {
+		return performance.now();
+	}
+
+	getPlayerById(id) {
+		return this.#players.get(id) || null;
+	}
+
+	/** Send the active 2x2 patch to every player; new joiners get it separately. */
+	broadcastBoostLocation(location) {
+		for (const player of this.#players.values()) {
+			player.connection.sendBoostLocation(location);
+		}
+	}
+
 
 	/**
 	 * @param {WebSocketConnection} connection

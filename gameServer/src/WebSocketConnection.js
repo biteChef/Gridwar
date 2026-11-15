@@ -38,6 +38,8 @@ export class WebSocketConnection {
 	#socket;
 	#mainInstance;
 	#game;
+	/** @type {{username: string}?} */
+	account = null;
 	/** @type {Player?} */
 	#player = null;
 	/** @type {ControlSocketConnection?} */

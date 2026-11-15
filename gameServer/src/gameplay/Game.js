@@ -139,11 +139,13 @@ export class Game {
 		return performance.now();
 	}
 
+	/** @param {number} id */
 	getPlayerById(id) {
 		return this.#players.get(id) || null;
 	}
 
 	/** Send the active 2x2 patch to every player; new joiners get it separately. */
+	/** @param {{x: number, y: number}?} location */
 	broadcastBoostLocation(location) {
 		for (const player of this.#players.values()) {
 			player.connection.sendBoostLocation(location);

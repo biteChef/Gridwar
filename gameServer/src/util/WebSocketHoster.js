@@ -8,7 +8,7 @@ export class WebSocketHoster {
 	#resolveAccount;
 
 	/**
-	 * @param {(socket: WebSocket, ip: string) => void} onConnection A callback that fires when a new connection
+	 * @param {(socket: WebSocket, ip: string, account: {username: string}? ) => void} onConnection A callback that fires when a new connection
 	 * is opened. The websocket passed as argument is guaranteed to be open.
 	 * @param {Object} options
 	 * @param {(req: Request, ip: string) => Promise<Response?>} [options.overrideRequestHandler] A callback that allows you to override requests. When the callback

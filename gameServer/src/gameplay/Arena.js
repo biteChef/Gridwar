@@ -107,7 +107,7 @@ export class Arena {
 	}
 
 	/**
-	 * @param {Vec2} pos
+	 * @param {{x: number, y: number}} pos
 	 */
 	getTileValue(pos) {
 		if (pos.x >= this.#width || pos.y >= this.#height) {

@@ -149,6 +149,8 @@ export class WebSocketConnection {
 			UNDO_PLAYER_DIE: 22,
 			TEAM_LIFE_COUNT: 23,
 			PLAYER_IS_SPECTATOR: 24,
+			BOOST_LOCATION: 25,
+			PLAYER_BOOST: 26,
 		};
 	}
 
@@ -286,7 +288,7 @@ export class WebSocketConnection {
 			if (this.#player) return;
 			this.#player = this.#game.createPlayer(this, {
 				skin: this.#receivedSkinData,
-				name: this.#receivedName,
+				name: this.account?.username || this.#receivedName,
 				isSpectator: this.#receivedSpectatorMode,
 			});
 			this.#player.sendCurrentViewportChunk();
@@ -300,6 +302,7 @@ export class WebSocketConnection {
 			if (leaderboard) {
 				this.send(leaderboard);
 			}
+			this.sendBoostLocation(this.#game.boostManager.location);
 			this.#sendReady();
 			this.#sendLegacyReady();
 		} else if (messageType == WebSocketConnection.ReceiveAction.PING) {
@@ -387,6 +390,35 @@ export class WebSocketConnection {
 				console.error(e.stack);
 			}
 		}
+	}
+
+	/**
+	 * Boost patch coordinates are integer tile positions; clear packet includes only a flag.
+	 * @param {{x: number, y: number}?} location
+	 */
+	sendBoostLocation(location) {
+		if (!location) {
+			this.send(new Uint8Array([WebSocketConnection.SendAction.BOOST_LOCATION, 0]));
+			return;
+		}
+		const bytes = new ArrayBuffer(6);
+		const data = new DataView(bytes);
+		data.setUint8(0, WebSocketConnection.SendAction.BOOST_LOCATION);
+		data.setUint8(1, 1);
+		data.setUint16(2, location.x, false);
+		data.setUint16(4, location.y, false);
+		this.send(bytes);
+	}
+
+	/** @param {number} playerId @param {number} multiplier @param {number} remainingMs */
+	sendPlayerBoost(playerId, multiplier, remainingMs) {
+		const bytes = new ArrayBuffer(9);
+		const data = new DataView(bytes);
+		data.setUint8(0, WebSocketConnection.SendAction.PLAYER_BOOST);
+		data.setUint16(1, playerId, false);
+		data.setUint16(3, Math.round(multiplier * 1000), false);
+		data.setUint32(5, Math.max(0, Math.floor(remainingMs)), false);
+		this.send(bytes);
 	}
 
 	#sendReady() {

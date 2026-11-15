@@ -68,7 +68,7 @@ function getCookieToken(req) {
 
 /** @param {Request} request @param {string} token @param {number} maxAge */
 function cookieHeader(request, token, maxAge) {
-	const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+	const secure = Deno.env.get("GRIDWAR_SECURE_COOKIES") == "1" || new URL(request.url).protocol === "https:" ? "; Secure" : "";
 	return COOKIE_NAME + "=" + token + "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" + maxAge + secure;
 }
 
@@ -137,7 +137,8 @@ export class AccountService {
 		const origin = request.headers.get("origin");
 		if (!origin) return false;
 		try {
-			return new URL(origin).origin == new URL(request.url).origin;
+			const publicOrigin = Deno.env.get("GRIDWAR_PUBLIC_ORIGIN") || new URL(request.url).origin;
+			return new URL(origin).origin == new URL(publicOrigin).origin;
 		} catch {
 			return false;
 		}

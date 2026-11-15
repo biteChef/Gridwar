@@ -8,11 +8,12 @@ export class WebSocketHoster {
 	#resolveAccount;
 
 	/**
-	 * @param {(socket: WebSocket, ip: string, account: {username: string}? ) => void} onConnection A callback that fires when a new connection
+	 * @param {(socket: WebSocket, ip: string, account: {username: string} | null) => void} onConnection A callback that fires when a new connection
 	 * is opened. The websocket passed as argument is guaranteed to be open.
 	 * @param {Object} options
 	 * @param {(req: Request, ip: string) => Promise<Response?>} [options.overrideRequestHandler] A callback that allows you to override requests. When the callback
 	 * returns a value it will be used as response instead of creating a new connection to the websocket.
+	 * @param {(req: Request) => (Promise<{username: string} | null> | null)} [options.resolveAccount] Optional trusted identity lookup.
 	 * For more complex situations you should probably use "std/http/mod.ts" instead of this.
 	 */
 	constructor(onConnection, { overrideRequestHandler, resolveAccount } = {}) {

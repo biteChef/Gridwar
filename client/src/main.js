@@ -1024,6 +1024,11 @@ async function sendPeliCode() {
 	wsSendMsg(sendAction.PELI_AUTH_CODE, code);
 }
 
+// Use the same speed for prediction, turn queues and network corrections.
+function getClientPlayerSpeed(player) {
+	return GLOBAL_SPEED * (player && player.boostUntil > Date.now() ? player.boostMultiplier : 1);
+}
+
 //sends new direction to websocket
 var lastSendDir = -1, lastSendDirTime = 0; //used to prevent spamming buttons
 function sendDir(dir, skipQueue) {
@@ -1039,7 +1044,7 @@ function sendDir(dir, skipQueue) {
 	//prevent spamming sendDir function
 	if (
 		dir == lastSendDir && //if dir is same as old sendDir call
-		(Date.now() - lastSendDirTime) < 0.7 / GLOBAL_SPEED // if last call was less than 'one block travel time' ago
+		(Date.now() - lastSendDirTime) < 0.7 / getClientPlayerSpeed(myPlayer) // prevent spam based on effective speed
 	) {
 		return false;
 	}
@@ -1692,7 +1697,7 @@ function onMessage(evt) {
 		//add distance traveled during server delay (ping/2)
 		var posOffset = 0;
 		if (player.isMyPlayer || thisServerAvgPing > 50) {
-			posOffset = thisServerAvgPing / 2 * GLOBAL_SPEED * (player.boostUntil > Date.now() ? player.boostMultiplier : 1);
+			posOffset = thisServerAvgPing / 2 * getClientPlayerSpeed(player);
 		}
 		movePos(newPosOffset, newDir, posOffset);
 
@@ -4396,12 +4401,12 @@ function loop(timeStamp) {
 		//players
 		for (var playerI = 0; playerI < players.length; playerI++) {
 			var player = players[playerI];
-			var offset = deltaTime * GLOBAL_SPEED * (player.boostUntil > Date.now() ? player.boostMultiplier : 1);
+			var offset = deltaTime * getClientPlayerSpeed(player);
 
 			//move player
 			if (!player.isDead || !player.deathWasCertain) {
 				if (player.moveRelativeToServerPosNextFrame) {
-					offset = (Date.now() - player.lastServerPosSentTime) * GLOBAL_SPEED * (player.boostUntil > Date.now() ? player.boostMultiplier : 1);
+					offset = (Date.now() - player.lastServerPosSentTime) * getClientPlayerSpeed(player);
 				}
 				if (player.isMyPlayer) {
 					movePos(player.serverPos, player.serverDir, offset);
@@ -4538,7 +4543,7 @@ function loop(timeStamp) {
 		if (sendDirQueue.length > 0) {
 			var thisDir = sendDirQueue[0];
 			if (
-				Date.now() - thisDir.addTime > 1.2 / GLOBAL_SPEED || // older than '1.2 blocks travel time'
+				Date.now() - thisDir.addTime > 1.2 / getClientPlayerSpeed(myPlayer) || // older than '1.2 blocks travel time'
 				sendDir(thisDir.dir, true) // senddir call was successful
 			) {
 				sendDirQueue.shift(); //remove item

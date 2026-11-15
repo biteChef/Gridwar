@@ -9,6 +9,7 @@ export const SPEED_BOOST = Object.freeze({
 	respawnMs: 20_000,
 });
 
+/** @param {import("../util/util.js").Rect} rect @param {{x: number, y: number}?} boost */
 export function rectTouchesBoost(rect, boost) {
 	if (!boost) return false;
 	return rect.min.x < boost.x + SPEED_BOOST.size &&
@@ -17,6 +18,7 @@ export function rectTouchesBoost(rect, boost) {
 		rect.max.y > boost.y;
 }
 
+/** @param {import("./Arena.js").Arena} arena @param {{x: number, y: number}?} boost */
 export function getCompleteBoostOwner(arena, boost) {
 	if (!boost) return 0;
 	const owner = arena.getTileValue({ x: boost.x, y: boost.y });
@@ -29,6 +31,7 @@ export function getCompleteBoostOwner(arena, boost) {
 	return owner;
 }
 
+/** @param {import("./Arena.js").Arena} arena @param {number} x @param {number} y */
 export function isValidBoostPlacement(arena, x, y) {
 	if (x < 3 || y < 3 || x + SPEED_BOOST.size >= arena.width - 2 ||
 		y + SPEED_BOOST.size >= arena.height - 2) {
@@ -44,10 +47,13 @@ export function isValidBoostPlacement(arena, x, y) {
 
 /** Only the server chooses placements and awards boosts. */
 export class SpeedBoostManager {
+	/** @type {import("./Game.js").Game} */
 	#game;
+	/** @type {{x: number, y: number}?} */
 	#boost = null;
 	#spawnAt = 0;
 
+	/** @param {import("./Game.js").Game} game */
 	constructor(game) {
 		this.#game = game;
 	}
@@ -57,6 +63,7 @@ export class SpeedBoostManager {
 	}
 
 	/** Run from the server's existing application loop. */
+	/** @param {number} now */
 	loop(now) {
 		if (!this.#boost && now >= this.#spawnAt) {
 			this.#placeBoost(now);
@@ -67,6 +74,7 @@ export class SpeedBoostManager {
 	 * Arena worker has finished applying a tile-ownership rectangle.
 	 * The patch activates ONLY when all four cells share the same owner.
 	 */
+	/** @param {import("../util/util.js").Rect} rect */
 	onRectFilled(rect) {
 		if (!rectTouchesBoost(rect, this.#boost)) return;
 		const ownerId = getCompleteBoostOwner(this.#game.arena, this.#boost);
@@ -80,6 +88,7 @@ export class SpeedBoostManager {
 		player.grantSpeedBoost(SPEED_BOOST.durationMs);
 	}
 
+	/** @param {number} now */
 	#placeBoost(now) {
 		const arena = this.#game.arena;
 		const maxX = arena.width - SPEED_BOOST.size - 3;

@@ -18,8 +18,8 @@ export class WebSocketManager {
 	 * @param {import("./Main.js").Main} mainInstance
 	 * @param {import("./gameplay/Game.js").Game} game
 	 */
-	constructor(mainInstance, game) {
-		this.#hoster = new WebSocketHoster((socket, ip) => {
+	constructor(mainInstance, game, accountService) {
+		this.#hoster = new WebSocketHoster((socket, ip, account) => {
 			if (!this.#rateLimitManager.actionAllowed(ip)) {
 				socket.close();
 				return;
@@ -29,6 +29,7 @@ export class WebSocketManager {
 			this.#rateLimitManager.markIpAsRecentAttempt(ip, ipCount);
 
 			const connection = new WebSocketConnection(socket, ip, mainInstance, game);
+			connection.account = account;
 			this.#activeConnections.add(connection);
 
 			const socketRateLimiter = new SocketRateLimiter({
@@ -56,6 +57,19 @@ export class WebSocketManager {
 				this.#activeConnections.delete(connection);
 				this.#offsetIpCount(ip, -1);
 			});
+		}, {
+			overrideRequestHandler: (request, ip) => accountService.handleRequest(request, ip),
+			resolveAccount: (request) => {
+				// Only associate cookies with same-origin game clients.
+				const origin = request.headers.get("origin");
+				if (!origin) return null;
+				try {
+					if (new URL(origin).origin != new URL(request.url).origin) return null;
+				} catch {
+					return null;
+				}
+				return accountService.getAccount(request);
+			},
 		});
 		this.#hoster.handleRequest;
 	}

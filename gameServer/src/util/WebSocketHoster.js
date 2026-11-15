@@ -40,7 +40,14 @@ export class WebSocketHoster {
 	 * @param {Deno.ServeHandlerInfo<Deno.NetAddr>} info
 	 */
 	async handleRequest(request, { remoteAddr }) {
-		const ip = remoteAddr?.transport == "tcp" ? remoteAddr.hostname : "unknown";
+		const directIp = remoteAddr?.transport == "tcp" ? remoteAddr.hostname : "unknown";
+		// Only accept X-Real-IP when a trusted local reverse proxy supplies it.
+		const trustedProxy = Deno.env.get("GRIDWAR_TRUST_PROXY") == "1" &&
+			(directIp == "127.0.0.1" || directIp == "::1");
+		const forwardedIp = request.headers.get("X-Real-IP");
+		const ip = trustedProxy && forwardedIp && /^[0-9a-fA-F:.]{1,45}$/.test(forwardedIp)
+			? forwardedIp
+			: directIp;
 		if (this.#overrideRequestHandler) {
 			const response = await this.#overrideRequestHandler(request, ip);
 			if (response) return response;

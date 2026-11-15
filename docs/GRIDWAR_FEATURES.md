@@ -57,6 +57,7 @@ The account service uses these optional configuration values:
 - GRIDWAR_KV_PATH: persistent writable KV file, default ./gridwar-accounts.kv
 - GRIDWAR_PUBLIC_ORIGIN: public HTTPS origin, if behind a reverse proxy
 - GRIDWAR_SECURE_COOKIES=1: force Secure cookies behind HTTPS termination
+- GRIDWAR_TRUST_PROXY=1: accept X-Real-IP only from a loopback reverse proxy, for per-client throttling
 
 Production deployment must expose the same-origin account API and WS endpoint over HTTPS/WSS and persist/back up the KV database. Avoid exposing the local development admin endpoints publicly.
 

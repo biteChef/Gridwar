@@ -13,6 +13,7 @@ import {
 import { lerp, Vec2 } from "renda";
 import { checkTrailSegment } from "../util/util.js";
 import { PlayerEventHistory } from "./PlayerEventHistory.js";
+import { SPEED_BOOST } from "./SpeedBoostManager.js";
 
 /**
  * When sent inside messages, these translate to an integer:
@@ -82,6 +83,9 @@ export class Player {
 	 * be checked for updates to their trail etc.
 	 */
 	#nextTileProgress = 0;
+
+	/** Millisecond deadline on the server clock; boosts cannot be activated by client messages. */
+	#speedBoostExpiresAt = 0;
 
 	/** @type {Direction} */
 	#currentDirection = "paused";
@@ -508,6 +512,35 @@ export class Player {
 	}
 
 	/**
+	 * Send the current movement multiplier to a viewer. The client uses this only
+	 * for prediction and drawing; the server remains authoritative.
+	 * @param {Player} receivingPlayer
+	 */
+	sendSpeedBoostToPlayer(receivingPlayer) {
+		const remainingMs = Math.max(0, Math.ceil(this.#speedBoostExpiresAt - performance.now()));
+		const playerId = this == receivingPlayer ? 0 : this.id;
+		receivingPlayer.connection.sendPlayerBoost(
+			playerId,
+			remainingMs > 0 ? SPEED_BOOST.multiplier : 1,
+			remainingMs,
+		);
+	}
+
+	#broadcastSpeedBoost() {
+		for (const observer of this.#inOtherPlayerViewports) {
+			this.sendSpeedBoostToPlayer(observer);
+		}
+	}
+
+	grantSpeedBoost(durationMs) {
+		if (this.dead || this.permanentlyDead || this.isSpectator) return;
+		this.#speedBoostExpiresAt = performance.now() + durationMs;
+		this.#broadcastSpeedBoost();
+		this.game.broadcastPlayerState(this);
+		this.sendPlayerStateToPlayer(this);
+	}
+
+	/**
 	 * Sends the state of this player to `receivingPlayer`.
 	 * @param {import("./Player.js").Player} receivingPlayer
 	 */
@@ -677,10 +710,21 @@ export class Player {
 	 * @param {number} dt
 	 */
 	loop(now, dt) {
+		if (this.#speedBoostExpiresAt && performance.now() >= this.#speedBoostExpiresAt) {
+			this.#speedBoostExpiresAt = 0;
+			this.#broadcastSpeedBoost();
+			this.game.broadcastPlayerState(this);
+			this.sendPlayerStateToPlayer(this);
+		}
 		if (this.currentDirection != "paused" && !this.dead) {
-			this.#nextTileProgress += dt * PLAYER_TRAVEL_SPEED;
-			if (this.#nextTileProgress > 1) {
+			const multiplier = this.#speedBoostExpiresAt ? SPEED_BOOST.multiplier : 1;
+			this.#nextTileProgress += dt * PLAYER_TRAVEL_SPEED * multiplier;
+			// The boosted speed may cross more than one tile in a slow server tick.
+			// Process every crossed tile or players could pass through trails/walls.
+			let movedTiles = 0;
+			while (this.#nextTileProgress >= 1 && movedTiles < 10 && !this.dead) {
 				this.#nextTileProgress -= 1;
+				movedTiles++;
 
 				const previousPosition = this.#currentPosition.clone();
 				if (this.currentDirection == "left") {
@@ -831,6 +875,7 @@ export class Player {
 			this.#connection.send(playerDeadMessage);
 		}
 		player.sendTrailToPlayer(this);
+		player.sendSpeedBoostToPlayer(this);
 	}
 
 	/**
@@ -951,6 +996,10 @@ export class Player {
 	 */
 	#die(deathType, killerName) {
 		if (this.#lastDeathState) return;
+		if (this.#speedBoostExpiresAt) {
+			this.#speedBoostExpiresAt = 0;
+			this.#broadcastSpeedBoost();
+		}
 		this.#lastDeathState = {
 			dieTime: performance.now(),
 			type: deathType,

@@ -1,9 +1,10 @@
 {
 	"tasks": {
 		"dev": "deno run -A --unstable-kv --watch scripts/dev.js",
-		"dev-inspect": "deno run -A --inspect scripts/dev.js",
+		"dev-inspect": "deno run -A --unstable-kv --inspect scripts/dev.js",
 		"install-deps": "deno run -A scripts/dev.js --no-init",
 		"check": "deno run --allow-env --allow-read npm:typescript@5.2.2/tsc --noEmit -p ./jsconfig.json",
+		"test": "deno test -A --unstable-kv tests/",
 		"build-gameserver": "deno run -A scripts/buildGameServer.js",
 		"build-client": "deno run -A scripts/buildClient.js",
 		"release-client": "deno run -A scripts/releaseClient.js",

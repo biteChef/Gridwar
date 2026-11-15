@@ -532,6 +532,7 @@ export class Player {
 		}
 	}
 
+	/** @param {number} durationMs */
 	grantSpeedBoost(durationMs) {
 		if (this.dead || this.permanentlyDead || this.isSpectator) return;
 		this.#speedBoostExpiresAt = performance.now() + durationMs;

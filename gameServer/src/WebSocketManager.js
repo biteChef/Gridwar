@@ -65,7 +65,8 @@ export class WebSocketManager {
 				const origin = request.headers.get("origin");
 				if (!origin) return null;
 				try {
-					if (new URL(origin).origin != new URL(request.url).origin) return null;
+					const expectedOrigin = Deno.env.get("GRIDWAR_PUBLIC_ORIGIN") || new URL(request.url).origin;
+					if (new URL(origin).origin != new URL(expectedOrigin).origin) return null;
 				} catch {
 					return null;
 				}

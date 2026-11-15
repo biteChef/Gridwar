@@ -1,6 +1,6 @@
 {
 	"tasks": {
-		"dev": "deno run -A --watch scripts/dev.js",
+		"dev": "deno run -A --unstable-kv --watch scripts/dev.js",
 		"dev-inspect": "deno run -A --inspect scripts/dev.js",
 		"install-deps": "deno run -A scripts/dev.js --no-init",
 		"check": "deno run --allow-env --allow-read npm:typescript@5.2.2/tsc --noEmit -p ./jsconfig.json",

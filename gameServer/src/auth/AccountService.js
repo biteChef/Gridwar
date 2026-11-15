@@ -5,28 +5,34 @@
  * Deno KV persists username/password verifiers and expiring sessions.
  * Start Deno with --unstable-kv (Deno 2.4.x).
  */
+/** @typedef {{username: string, salt: number[], verifier: number[], createdAt: number}} AccountRecord */
 const COOKIE_NAME = "gridwar_session";
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 const PBKDF2_ITERATIONS = 310_000;
 const textEncoder = new TextEncoder();
 const loginError = "Invalid username or password.";
 
+/** @param {Uint8Array} bytes */
 function base64Url(bytes) {
 	return btoa(String.fromCharCode(...bytes)).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
+/** @param {unknown} value */
 function normalizeUsername(value) {
 	return typeof value == "string" ? value.trim().toLowerCase() : "";
 }
 
+/** @param {unknown} value */
 function isValidUsername(value) {
 	return /^[a-zA-Z0-9_]{3,20}$/.test(value);
 }
 
+/** @param {unknown} value */
 function isValidPassword(value) {
 	return typeof value == "string" && value.length >= 12 && value.length <= 128;
 }
 
+/** @param {string} password @param {Uint8Array} salt */
 async function derivePassword(password, salt) {
 	const key = await crypto.subtle.importKey("raw", textEncoder.encode(password), "PBKDF2", false, ["deriveBits"]);
 	const bits = await crypto.subtle.deriveBits(
@@ -37,11 +43,13 @@ async function derivePassword(password, salt) {
 	return new Uint8Array(bits);
 }
 
+/** @param {string} token */
 async function hashSession(token) {
 	const digest = await crypto.subtle.digest("SHA-256", textEncoder.encode(token));
 	return base64Url(new Uint8Array(digest));
 }
 
+/** @param {Uint8Array} a @param {Uint8Array} b */
 function constantTimeEqual(a, b) {
 	if (a.length != b.length) return false;
 	let different = 0;
@@ -49,6 +57,7 @@ function constantTimeEqual(a, b) {
 	return different === 0;
 }
 
+/** @param {Request} req */
 function getCookieToken(req) {
 	const parts = (req.headers.get("cookie") || "").split(";");
 	const part = parts.find((value) => value.trim().startsWith(COOKIE_NAME + "="));
@@ -57,11 +66,13 @@ function getCookieToken(req) {
 	return /^[A-Za-z0-9_-]{43}$/.test(token) ? token : null;
 }
 
+/** @param {Request} request @param {string} token @param {number} maxAge */
 function cookieHeader(request, token, maxAge) {
 	const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
 	return COOKIE_NAME + "=" + token + "; HttpOnly; SameSite=Strict; Path=/; Max-Age=" + maxAge + secure;
 }
 
+/** @param {unknown} data @param {number} status @param {Record<string, string>} extraHeaders */
 function json(data, status = 200, extraHeaders = {}) {
 	return new Response(JSON.stringify(data), {
 		status,
@@ -75,7 +86,9 @@ function json(data, status = 200, extraHeaders = {}) {
 }
 
 export class AccountService {
+	/** @type {Promise<Deno.Kv>?} */
 	#dbPromise = null;
+	/** @type {Map<string, {started: number, count: number}>} */
 	#attempts = new Map();
 
 	#db() {
@@ -83,6 +96,7 @@ export class AccountService {
 		return this.#dbPromise;
 	}
 
+	/** @param {string} ip */
 	#rateLimit(ip) {
 		const now = Date.now();
 		const current = this.#attempts.get(ip);
@@ -94,6 +108,7 @@ export class AccountService {
 		return current.count > 8;
 	}
 
+	/** @param {Deno.Kv} db @param {Request} request @param {string} username */
 	async #createSession(db, request, username) {
 		const rawToken = base64Url(crypto.getRandomValues(new Uint8Array(32)));
 		const sessionKey = await hashSession(rawToken);
@@ -104,16 +119,19 @@ export class AccountService {
 	}
 
 	/** Returns only public identity information, never a password hash or session token. */
+	/** @param {Request} request */
 	async getAccount(request) {
 		const token = getCookieToken(request);
 		if (!token) return null;
 		const db = await this.#db();
 		const session = await db.get(["gridwar", "session", await hashSession(token)]);
-		if (!session.value?.username) return null;
-		return { username: session.value.username };
+		const identity = /** @type {{username: string}?} */ (session.value);
+		if (!identity?.username) return null;
+		return { username: identity.username };
 	}
 
 	/** An origin/JSON request check to guard the cookie-based write endpoints. */
+	/** @param {Request} request */
 	#isSafeWriteRequest(request) {
 		if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) return false;
 		const origin = request.headers.get("origin");
@@ -159,6 +177,7 @@ export class AccountService {
 
 		const bodyText = await request.text();
 		if (bodyText.length > 1024) return json({ error: "Request too large." }, 413);
+		/** @type {{username?: unknown, password?: unknown} | null} */
 		let credentials;
 		try {
 			credentials = JSON.parse(bodyText);
@@ -193,7 +212,7 @@ export class AccountService {
 		}
 		const record = await db.get(userKey);
 		// Use a dummy verifier to reduce account-existence timing differences.
-		const user = record.value;
+		const user = /** @type {AccountRecord?} */ (record.value);
 		const salt = new Uint8Array(user?.salt || new Array(16).fill(0));
 		const expected = new Uint8Array(user?.verifier || new Array(32).fill(0));
 		const actual = await derivePassword(password, salt);

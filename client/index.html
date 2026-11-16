@@ -5,6 +5,7 @@
 		<meta content="text/html;charset=utf-8" http-equiv="Content-Type">
 		<meta content="utf-8" http-equiv="encoding">
 		<link rel="stylesheet" href="./static/style.css" />
+		<link rel="stylesheet" href="./static/territory-token.css" />
 		<link rel="stylesheet" href="./static/gridwar-features.css" />
 		<script type="module" src="./src/main.js"></script>
 		<meta name="viewport" content="width=device-width, initial-scale=0.8, maximum-scale=0.8, user-scalable=no" />
@@ -366,12 +367,24 @@
 			<div id="leaderboard" class="greenBox"></div>
 			<div id="miniMap" class="greenBox">
 				<div id="miniMapPlayer"></div>
+				<div id="territoryTokenMinimap" hidden aria-label="Token location"></div>
 				<canvas id="minimapCanvas" width="160" height="160"></canvas>
 			</div>
 			<div id="lifeBox"></div>
 			<div id="topNotifications"></div>
 			<div id="speedBoostHud" hidden>⚡ SPEED BOOST <span id="speedBoostTime"></span></div>
 			<div id="powerUpHud" hidden aria-live="off"></div>
+			<div id="territoryTokenHud" hidden aria-live="polite">
+				<div class="territory-token-title"><span class="territory-token-emoji">◆</span> TOKEN CONTROL <span class="territory-token-reward">+0.75</span></div>
+				<div id="territoryTokenStatus"></div>
+				<div class="territory-token-progress"><div id="territoryTokenProgress"></div></div>
+				<div id="territoryTokenAttempts"></div>
+			</div>
+			<div id="territoryTokenGuide" hidden aria-label="Direction to token">
+				<span id="territoryTokenArrow">➤</span>
+				<span id="territoryTokenDistance"></span>
+			</div>
+			<div id="territoryTokenEarnings" hidden>Session tokens: <span id="territoryTokenEarningsValue">0.00</span></div>
 		</div>
 		<canvas id="transitionCanvas" class="fullscreenCanvas" style="z-index: 1000; display: none"></canvas>
 		<canvas id="mainCanvas" class="fullscreenCanvas" style="z-index: -100; display: none"></canvas>

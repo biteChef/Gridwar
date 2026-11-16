@@ -19,14 +19,13 @@ Deno.test("first-generation power-up images match existing game IDs", () => {
 });
 
 Deno.test("all six approved icons are small transparent WebP images", async () => {
-	const encoder = new TextDecoder("ascii");
 	for (const name of Object.keys(POWER_UP_ART)) {
 		const path = "client/static/img/powerups/" + name + ".webp";
 		const bytes = await Deno.readFile(path);
 		assert.ok(bytes.length > 300 && bytes.length < 15_000, path);
-		assert.equal(encoder.decode(bytes.subarray(0, 4)), "RIFF", path);
-		assert.equal(encoder.decode(bytes.subarray(8, 12)), "WEBP", path);
-		assert.equal(encoder.decode(bytes.subarray(12, 16)), "VP8X", path);
+		assert.deepEqual([...bytes.subarray(0, 4)], [82, 73, 70, 70], path);
+		assert.deepEqual([...bytes.subarray(8, 12)], [87, 69, 66, 80], path);
+		assert.deepEqual([...bytes.subarray(12, 16)], [86, 80, 56, 88], path);
 		// The first generated icons have transparent, not opaque, backgrounds.
 		assert.ok((bytes[20] & 0x10) !== 0, path + " must include an alpha channel");
 	}

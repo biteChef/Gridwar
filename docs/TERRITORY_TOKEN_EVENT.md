@@ -49,6 +49,71 @@ A completed or failed round is followed by a **45-second** cooldown before the n
 
 Existing Splix and Gridwar packet IDs 1–30 are unchanged. A client not recognizing the new packets can ignore them; the gameplay simulation continues unchanged.
 
+## Terminal commands for local testing
+
+Requires **Deno 2.4.1** and Git. Run these commands from a terminal on your computer.
+
+### 1. Clone the feature branch
+
+```bash
+git clone https://github.com/biteChef/Gridwar.git
+cd Gridwar
+git fetch origin
+git switch feature/territory-token-event
+deno --version
+```
+
+If you already cloned Gridwar, run only:
+
+```bash
+cd Gridwar
+git fetch origin
+git switch feature/territory-token-event
+git pull --ff-only
+```
+
+If the installed Deno version is different, follow the official Deno installation instructions and use `deno upgrade --version=2.4.1`.
+
+### 2. Run the automated checks
+
+```bash
+deno task install-deps
+deno fmt --check
+deno task check
+deno task test
+deno test -A --unstable-kv tests/territoryToken.test.js
+```
+
+The final line runs only the new territory-token test file. If you have not yet built this repository locally, the dependency installation task may download files. Do not use `deno fmt` without `--check` when you only intend to inspect formatting.
+
+### 3. Start the local game
+
+```bash
+deno task dev
+```
+
+Open **http://localhost:8080/client/** and select the local development game server. The server's base page at **http://localhost:8080/** also provides a direct local game link.
+
+To see the token spawn, **join with two active players** (for example, in two separate browser windows), because the event requires at least two living, non-spectating participants. Run the first player in one window and the second with a different nickname in another. Keep the terminal running while playing; press `Ctrl+C` to stop it.
+
+Manual smoke test:
+
+1. Verify the golden marker appears on both players' minimaps, with an arrow pointing toward its position.
+2. Capture the token's neutral tile using normal Splix territory rules; the first holder should see a **30s** countdown.
+3. Have a different player take ownership of that tile; the next countdown should be **15s**.
+4. Test the third capture (also **15s**) and ensure no fourth capture is allowed.
+5. Complete a hold to check the **0.75 virtual session-token** notification; reload and verify that it is not a persistent wallet balance.
+6. Try a spectator, death, and disconnect while holding the token.
+
+### 4. Optional build checks
+
+```bash
+deno task build-client
+deno task build-gameserver --target linux
+```
+
+The Linux server build target above is for CI/servers; it is not a macOS executable. All builds, runtime smoke tests, and network tests still need to pass before merging the feature PR.
+
 ## Roadmap for production readiness
 
 - [x] Implement capture/hold/steal event manager with a three-capture limit.

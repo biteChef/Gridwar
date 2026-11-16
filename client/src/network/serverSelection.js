@@ -53,6 +53,16 @@ export async function initServerSelection() {
 		}
 	}
 
+	// Dev builds must use the locally running game server by default.
+	// Otherwise a previously saved/official server silently ignores local
+	// Wall Shield changes, making wall collisions appear broken.
+	if (IS_DEV_BUILD) {
+		const optionEl = document.createElement("option");
+		optionEl.value = (location.protocol == "https:" ? "wss://" : "ws://") + location.host + "/gameserver";
+		optionEl.textContent = "Local development server";
+		unofficialGroup.prepend(optionEl);
+		selectedEndpoint = optionEl;
+	}
 	if (location.hash.indexOf("#ip=") == 0) {
 		const optionEl = document.createElement("option");
 		optionEl.value = location.hash.substring(4);
@@ -62,13 +72,19 @@ export async function initServerSelection() {
 	}
 
 	if (!selectedEndpoint) {
-		selectedEndpoint = officialEndpoints[0] || null;
+		selectedEndpoint = officialEndpoints[0] || unofficialGroup.firstElementChild;
 	}
 
 	if (officialGroup.childElementCount > 0) serverSelectEl.appendChild(officialGroup);
 	if (unofficialGroup.childElementCount > 0) serverSelectEl.appendChild(unofficialGroup);
 
-	serverSelectEl.selectedIndex = selectedEndpoint.index;
+	// An empty server list is possible on a fresh local setup.
+	if (!selectedEndpoint) {
+		serverSelectEl.disabled = true;
+		joinButton.disabled = true;
+		return;
+	}
+	serverSelectEl.value = selectedEndpoint.value;
 
 	serverSelectEl.disabled = false;
 	joinButton.disabled = false;

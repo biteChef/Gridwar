@@ -168,6 +168,7 @@ export class Game {
 		for (const viewer of this.#players.values()) {
 			if (!viewer.hasPowerUp("radar")) continue;
 			const origin = viewer.getPosition();
+			/** @type {{x: number, y: number, trail: {x: number, y: number}[]}[]} */
 			const contacts = [];
 			for (const player of this.#players.values()) {
 				if (player == viewer || player.dead || player.permanentlyDead || player.isSpectator) continue;

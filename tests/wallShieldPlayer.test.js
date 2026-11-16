@@ -99,4 +99,29 @@ Deno.test("without Wall Shield, wall hit is ordinary death without connection lo
 	assert.equal(player.dead, true);
 	assert.equal(events.deaths, 1);
 	assert.equal(events.closed, 0);
+	// The server must leave the player on the last valid tile. It must never
+	// place them at y=0 or beyond and try to fetch an invalid arena tile.
+	assert.deepEqual(player.getPosition().toArray(), [8, 1]);
+});
+
+Deno.test("client-supplied out-of-bounds turn cannot teleport through the wall", () => {
+	const { player, events } = createWallApproach(true);
+	const before = player.getPosition();
+	player.clientPosUpdateRequested("left", new Vec2(-5, 3));
+	assert.deepEqual(player.getPosition().toArray(), before.toArray());
+	assert.equal(player.hasPowerUp("wall"), true);
+	assert.equal(player.dead, false);
+	assert.equal(events.closed, 0);
+});
+
+Deno.test("Wall Shield also redirects when a lagged server tick crosses multiple tiles", () => {
+	const { player, events } = createWallApproach(true);
+	// A single lagged tick has enough time to move multiple tiles.
+	player.loop(performance.now(), 3 / PLAYER_TRAVEL_SPEED);
+	assert.equal(player.dead, false);
+	assert.equal(player.hasPowerUp("wall"), false);
+	assert.ok(player.getPosition().x >= 1 && player.getPosition().x <= 18);
+	assert.ok(player.getPosition().y >= 1 && player.getPosition().y <= 18);
+	assert.ok(["left", "right"].includes(player.currentDirection));
+	assert.equal(events.closed, 0);
 });

@@ -143,6 +143,22 @@ Other ongoing work may be on separate branches/PRs. Do not mark it shipped until
 - [ ] Basic server metrics and an operator recovery path exist.
 - [ ] Capacity numbers are supported by repeatable load tests.
 
+
+## Feature track — Territory Token Capture Event (parallel to scaling)
+
+- [x] Define the event: **one** random token location per arena, globally visible on the minimap with a directional guide.
+- [x] Define capture as territorial ownership: first holder must protect the tile for **30 seconds**.
+- [x] Define a takeover: second and third successful captures each start a **15-second** hold; **three captures maximum** per round.
+- [x] Specify a **0.75 in-game token** reward to the player completing a hold (not a real-wallet payout).
+- [ ] Review and test prototype PR [#6](https://github.com/biteChef/Gridwar/pull/6) (currently a draft; **not on main**).
+- [ ] Run all Deno tests, format/type checks, and actual multiplayer/browser play-tests.
+- [ ] Decide whether the event is available in all default arenas or a dedicated mode.
+- [ ] If persistent credit is desired, design cross-arena identity, idempotent reward storage and abuse controls; never treat client events as payouts.
+- [ ] Validate how the three-capture limit behaves during owner death, disconnect and territory reset.
+- [ ] Document deployment toggles, cooldowns, supported map sizes, and performance implications.
+
+This feature is **not** a prerequisite for M1–M6 capacity scaling. One event lives inside each arena instance; it must not create additional per-tick scans across all regions. See the prototype notes in [PR #6](https://github.com/biteChef/Gridwar/pull/6) for the current interpretation of “three attempts” as **three successful captures**.
+
 ---
 
 _Keep this document updated as tasks move from planned to implemented; reference PRs and test results rather than treating targets as facts._

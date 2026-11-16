@@ -13,9 +13,9 @@ This branch is based on the **merged main branch**. The unfinished `feature/one-
 | 4 — Double Score | `client/static/img/powerups/double.webp` | Two golden stars |
 | 5 — Trail Repair | `client/static/img/powerups/repair.webp` | Golden repair wrench |
 
-All WebPs are transparent-background, optimized transparent 112 × 112 pixel game sprites and scale down to the 2×2 (20 world-unit) collectible patches. The map badges retain their four-tile footprint and color-coded outline; there is no circular backing: the icons' built-in outlines keep them readable over each player's territory.
+All six approved first-generation icons are optimized, transparent 112 × 112 WebP game sprites that scale down to the 2×2 (20 world-unit) collectible patches. The map badges retain their four-tile footprint and color-coded outline; there is no circular backing: the icons' built-in outlines keep them readable over each player's territory.
 
-The images are preloaded and cached once, then drawn onto the existing game Canvas. If an icon has not loaded yet, a neutral loading glint appears temporarily. No icon is loaded inside a frame loop.
+The images are preloaded and cached once, then drawn onto the existing game Canvas. If an icon has not loaded yet, a small neutral square appears temporarily. No icon is loaded inside a frame loop.
 
 The HUD shows each icon beside its power-up name and countdown. Trail Repair remains labeled “ready” until its charge is used; Speed Boost uses the new lightning WebP instead of a text emoji.
 

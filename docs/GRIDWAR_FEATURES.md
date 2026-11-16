@@ -14,6 +14,49 @@ This feature branch comes directly from Gridwar main. It does NOT include the ea
 
 Code: gameServer/src/gameplay/SpeedBoostManager.js, Game.js, Player.js, WebSocketConnection.js, client/src/main.js.
 
+
+## Five additional power-ups (2x2 capture-based)
+
+These run alongside the existing 10-second Speed Boost, without modifying the
+original Splix encirclement and territory-elimination rules.
+
+All five have distinct colored 2x2 map markers. Their initial appearances are
+staggered over the first 8 seconds and each collected patch respawns after 35
+seconds. The server picks walkable neutral or already-claimed land, prevents
+overlaps with other pickups, and never auto-awards on spawn. Claim all four
+tiles through a new capture, or, if the area is already yours, move onto the
+patch. Spectators and dead players cannot collect pickups. Effects do not stack
+with copies of themselves.
+
+| Type | Duration | Effect |
+| --- | --- | --- |
+| Shield | 8 seconds, one hit | Blocks a single opponent strike on your exposed trail; the trail remains |
+| Radar | 15 seconds | Reveals opponent positions and sampled exposed-trail points within 55 tiles on your minimap |
+| Ghost Mode | 5 seconds | Ignore collisions with your own exposed trail only; enemies and walls remain dangerous |
+| Double Score | 15 seconds | Award one bonus point per additional tile captured while active, doubling that capture's points but not the owned tile count |
+| Trail Repair | One use | Automatically blocks one opponent strike to your exposed trail and clears the exposed trail |
+
+Shield has priority over Trail Repair when both are active. A successful
+defensive interception provides 1.1 seconds of collision grace so overlapping
+enemy positions do not immediately repeat the same strike. Defensive power-ups
+do not prevent hitting walls, and Ghost Mode does not ignore enemy trails.
+
+Radar updates are transmitted only to a player while their Radar effect is
+active. Score bonuses contribute to the in-game player score and leaderboard.
+Persistent account scoring and original global scoreboard integration can be
+added later.
+
+WebSocket packet types 27-30 carry pickup locations, player-owned active
+effect timers/charges, radar contacts, and the earned score bonus. Original
+legacy packet IDs remain unchanged. The original landing page is preserved.
+
+Code: gameServer/src/gameplay/PowerUpState.js,
+gameServer/src/gameplay/PowerUpManager.js,
+gameServer/src/gameplay/Player.js,
+gameServer/src/gameplay/Game.js,
+gameServer/src/WebSocketConnection.js,
+client/src/main.js.
+
 ## Optional accounts with immediate guest play
 
 - The existing Join button still works without logging in. Guest entry is immediate.

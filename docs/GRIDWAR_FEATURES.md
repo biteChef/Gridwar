@@ -85,6 +85,12 @@ an available one-use shield charge. Update both client and server together.
 markers with a consistent set of scalable vector icons in a later art pass.
 No icon redesign is included in this feature branch.
 
+Wall collision stability fix:
+- Save the original turning vertex when Wall Shield pushes a player sideways. Without it, Splix can throw a diagonal-trail assertion and terminate the connection.
+- Handle a blocked or unprotected wall collision before asking the arena for a tile at the invalid coordinates. This should produce a normal elimination rather than a WebSocket disconnect.
+- Suppress premature client-side wall-death prediction while the Wall Shield charge remains ready. The server decides the real result.
+- tests/wallShieldPlayer.test.js checks actual Player movement, trail continuity and no socket closure with or without the shield.
+
 Testing: tests/wallShield.test.js covers all boundary directions, corners,
 side selection, blocked paths and invalid headings. The existing pickup and
 power-up state tests cover spawning and one-use collection.

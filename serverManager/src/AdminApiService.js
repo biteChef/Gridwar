@@ -33,10 +33,10 @@ export function validateServerConfig(value) {
 		return null;
 	}
 	return {
-		public: data.public,
-		official: data.official,
-		recommended: data.recommended,
-		needsControlSocket: data.needsControlSocket,
+		public: /** @type {boolean} */ (data.public),
+		official: /** @type {boolean} */ (data.official),
+		recommended: /** @type {boolean} */ (data.recommended),
+		needsControlSocket: /** @type {boolean} */ (data.needsControlSocket),
 		displayName,
 		endpoint,
 	};

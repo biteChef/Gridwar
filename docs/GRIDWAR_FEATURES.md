@@ -57,6 +57,38 @@ gameServer/src/gameplay/Game.js,
 gameServer/src/WebSocketConnection.js,
 client/src/main.js.
 
+## Wall Shield — separate one-use boundary rescue
+
+Wall Shield is a sixth special 2x2 collectible (type ID 6). It is separate
+from the trail Shield and the Trail Repair pickup. Collect it using the same
+four-tile capture rule or by entering the 2x2 patch in territory you already
+own. A collected Wall Shield has **one charge** and remains ready until used.
+
+When the player would hit an outer map boundary or the arena's pit border, the
+server searches for a safe one-tile perpendicular sidestep. It chooses a left
+or right turn relative to the current heading, preferring a randomly chosen
+side but using the other if the first is blocked. A successful rescue moves
+one tile sideways, redirects the player's heading along the wall, removes the
+charge, clears stale queued turns, and synchronizes the corrected position.
+
+A deflection is blocked if it would run into a boundary or an existing
+dangerous trail. If both sideways directions are blocked, the original wall
+death rule applies, and the shield is **not consumed**. Wall Shield cannot
+save the player from trail collisions or other deaths. It does not change
+the existing Splix territory-encirclement rules.
+
+The existing POWERUP_STATE message now contains six two-byte values rather
+than five (13 bytes total). As with Trail Repair, the value 65535 denotes
+an available one-use shield charge. Update both client and server together.
+
+**Visual follow-up:** Replace the current text labels on the 2x2 power-up
+markers with a consistent set of scalable vector icons in a later art pass.
+No icon redesign is included in this feature branch.
+
+Testing: tests/wallShield.test.js covers all boundary directions, corners,
+side selection, blocked paths and invalid headings. The existing pickup and
+power-up state tests cover spawning and one-use collection.
+
 ## Optional accounts with immediate guest play
 
 - The existing Join button still works without logging in. Guest entry is immediate.

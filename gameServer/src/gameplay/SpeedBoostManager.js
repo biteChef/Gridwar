@@ -156,6 +156,15 @@ export class SpeedBoostManager {
 		return chosen;
 	}
 
+	/** @param {number} x @param {number} y */
+	#overlapsPowerUps(x, y) {
+		for (const patch of this.#game.powerUpManager?.locations || []) {
+			if (x < patch.x + 2 && x + 2 > patch.x &&
+				y < patch.y + 2 && y + 2 > patch.y) return true;
+		}
+		return false;
+	}
+
 	/** @param {number} now */
 	#placeBoost(now) {
 		const arena = this.#game.arena;
@@ -169,11 +178,13 @@ export class SpeedBoostManager {
 		// Prefer existing claimed land in roughly half of the spawns; if there
 		// is none, fall back to all walkable parts of the map.
 		let location = Math.random() < 0.5 ? this.#sampleCapturedPatch() : null;
+		// Avoid placing the original speed boost on top of another power-up.
+		if (location && this.#overlapsPowerUps(location.x, location.y)) location = null;
 		if (!location) {
 			for (let attempt = 0; attempt < 160; attempt++) {
 				const x = 3 + Math.floor(Math.random() * (maxX - 2));
 				const y = 3 + Math.floor(Math.random() * (maxY - 2));
-				if (!isValidBoostPlacement(arena, x, y)) continue;
+				if (!isValidBoostPlacement(arena, x, y) || this.#overlapsPowerUps(x, y)) continue;
 				location = { x, y };
 				break;
 			}
@@ -182,7 +193,7 @@ export class SpeedBoostManager {
 		if (!location) {
 			for (let x = 3; x <= maxX && !location; x++) {
 				for (let y = 3; y <= maxY; y++) {
-					if (!isValidBoostPlacement(arena, x, y)) continue;
+					if (!isValidBoostPlacement(arena, x, y) || this.#overlapsPowerUps(x, y)) continue;
 					location = { x, y };
 					break;
 				}

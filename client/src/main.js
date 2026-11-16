@@ -4623,7 +4623,7 @@ function loop(timeStamp) {
 							roundedPos[1] <= twoPos[1][1]
 						) {
 							if (!touchingPrevTrail) {
-								if (!(player.isMyPlayer && powerUpEnds[2] > Date.now())) playerShouldBeDead = true;
+								if (player.isMyPlayer && powerUpEnds[2] <= Date.now()) playerShouldBeDead = true;
 							}
 							touchingPrevTrail = true;
 						} else {

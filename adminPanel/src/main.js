@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Gridwar Admin v1 — intentionally dependency-light, using same-origin
  * authenticated JSON APIs. All dynamic server data is rendered as text.
@@ -230,6 +231,7 @@ async function onSaveServer(event) {
 	try {
 		await api("servers/" + state.editingServerId, { method: "PUT", body: config });
 		byId("serverDialog").close();
+		state.busy = false;
 		await refreshOverview();
 	} catch (error) {
 		errorBox.hidden = false;

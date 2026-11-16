@@ -146,6 +146,8 @@ var speedBoosterPos = null;
 var powerUpPatches = [];
 var powerUpEnds = [0, 0, 0, 0, 0];
 var powerUpBonus = 0;
+var territoryTokenState = null;
+var territoryTokenEarningsMilli = 0;
 var radarContacts = [];
 var radarCanvas = null;
 var radarCtx = null;
@@ -265,6 +267,8 @@ var receiveAction = {
 	POWERUP_STATE: 28,
 	RADAR_CONTACTS: 29,
 	SCORE_BONUS: 30,
+	TERRITORY_TOKEN_STATE: 31,
+	TERRITORY_TOKEN_REWARD: 32,
 };
 
 var sendAction = {
@@ -1677,6 +1681,26 @@ function onMessage(evt) {
 	// console.log(evt);
 	var x, y, type, id, player, w, h, block, i, j, nameBytes;
 	var data = new Uint8Array(evt.data);
+	if (data[0] == receiveAction.TERRITORY_TOKEN_STATE) {
+		if (data.length !== 13 || data[1] > 4) return;
+		territoryTokenState = {
+			phase: ["inactive", "available", "held", "won", "expired"][data[1]],
+			x: bytesToInt(data[2], data[3]),
+			y: bytesToInt(data[4], data[5]),
+			ownerId: bytesToInt(data[6], data[7]),
+			captures: data[8],
+			remainingMs: bytesToInt(data[9], data[10], data[11], data[12]),
+			receivedAt: Date.now(),
+		};
+		return;
+	}
+	if (data[0] == receiveAction.TERRITORY_TOKEN_REWARD) {
+		if (data.length !== 7) return;
+		territoryTokenEarningsMilli = bytesToInt(data[3], data[4], data[5], data[6]);
+		const reward = bytesToInt(data[1], data[2]) / 1000;
+		doTopNotification("Token secured! +" + reward.toFixed(2) + " game tokens (session only)");
+		return;
+	}
 	if (data[0] == receiveAction.POWERUP_LOCATIONS) {
 		if (data.length < 2 || data.length != 2 + data[1] * 5) return;
 		powerUpPatches = [];
@@ -2324,6 +2348,8 @@ function resetAll() {
 	powerUpPatches = [];
 	powerUpEnds = [0, 0, 0, 0, 0];
 	powerUpBonus = 0;
+	territoryTokenState = null;
+	territoryTokenEarningsMilli = 0;
 	radarContacts = [];
 	if (radarCtx) radarCtx.clearRect(0, 0, 160, 160);
 	const boostHud = document.getElementById("speedBoostHud");
@@ -3814,6 +3840,98 @@ function updatePowerUpHud() {
 	hud.hidden = visibleCount == 0;
 }
 
+// Server-synchronized territory token: the client never chooses a winner.
+function drawTerritoryToken(ctx) {
+	const state = territoryTokenState;
+	if (!state || (state.phase != "available" && state.phase != "held")) return;
+	if (Math.abs(state.x - camPos[0]) > VIEWPORT_RADIUS + 2 ||
+		Math.abs(state.y - camPos[1]) > VIEWPORT_RADIUS + 2) return;
+	const centerX = (state.x + 0.5) * 10;
+	const centerY = (state.y + 0.5) * 10;
+	const glow = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
+	ctx.save();
+	ctx.beginPath();
+	ctx.arc(centerX, centerY, 11 + 2 * glow, 0, Math.PI * 2);
+	ctx.fillStyle = "rgba(255, 203, 63, " + (0.17 + 0.13 * glow) + ")";
+	ctx.fill();
+	ctx.beginPath();
+	ctx.moveTo(centerX, centerY - 7);
+	ctx.lineTo(centerX + 7, centerY);
+	ctx.lineTo(centerX, centerY + 7);
+	ctx.lineTo(centerX - 7, centerY);
+	ctx.closePath();
+	ctx.fillStyle = "#ffcf5e";
+	ctx.strokeStyle = "#fff6c2";
+	ctx.lineWidth = 1.3;
+	ctx.fill();
+	ctx.stroke();
+	ctx.restore();
+}
+
+function updateTerritoryTokenHud() {
+	const state = territoryTokenState;
+	const active = state && state.phase != "inactive";
+	const hud = document.getElementById("territoryTokenHud");
+	const marker = document.getElementById("territoryTokenMinimap");
+	const guide = document.getElementById("territoryTokenGuide");
+	const earnings = document.getElementById("territoryTokenEarnings");
+	if (!hud || !marker || !guide || !earnings) return;
+	hud.hidden = !active;
+	earnings.hidden = territoryTokenEarningsMilli <= 0;
+	if (territoryTokenEarningsMilli > 0) {
+		document.getElementById("territoryTokenEarningsValue").textContent =
+			(territoryTokenEarningsMilli / 1000).toFixed(2);
+	}
+	if (!active) {
+		marker.hidden = true;
+		guide.hidden = true;
+		return;
+	}
+	const isOnMap = state.phase == "available" || state.phase == "held";
+	marker.hidden = !isOnMap;
+	guide.hidden = !isOnMap || !myPos;
+	const status = document.getElementById("territoryTokenStatus");
+	const progress = document.getElementById("territoryTokenProgress");
+	const attempts = document.getElementById("territoryTokenAttempts");
+	const rewardLabel = document.getElementById("territoryTokenRewardLabel");
+	const maxCaptures = 3;
+	// The badge reflects the reward for the current capture (or next capture
+	// while unclaimed), not a fixed reward for every round.
+	const reward = state.captures <= 1 ? 1 : state.captures === 2 ? 0.75 : 0.5;
+	const possibleReward = state.phase == "available" && state.captures > 0
+		? (state.captures === 1 ? 0.75 : 0.5)
+		: reward;
+	rewardLabel.textContent = "+" + possibleReward.toFixed(2);
+	if (state.phase == "available") {
+		status.textContent = "Unclaimed — capture its tile!";
+		progress.style.width = "0%";
+	} else if (state.phase == "held") {
+		const remaining = Math.max(0, state.remainingMs - (Date.now() - state.receivedAt));
+		const duration = state.captures == 1 ? 30_000 : 15_000;
+		status.textContent = "Hold " + (remaining / 1000).toFixed(1) + "s · +" + reward.toFixed(2);
+		progress.style.width = (100 * (1 - remaining / duration)).toFixed(1) + "%";
+	} else if (state.phase == "won") {
+		status.textContent = "Token secured! +" + reward.toFixed(2) + " game tokens";
+		progress.style.width = "100%";
+	} else {
+		status.textContent = "Round ended — no winner";
+		progress.style.width = "0%";
+	}
+	attempts.textContent = "Captures: " + state.captures + " / " + maxCaptures +
+		(state.captures == 2 && isOnMap ? " · Next capture: instant +0.50" : "");
+	if (!isOnMap) return;
+	marker.style.left = ((state.x + 0.5) / mapSize * 160 + 3) + "px";
+	marker.style.top = ((state.y + 0.5) / mapSize * 160 + 3) + "px";
+	if (myPos) {
+		const dx = state.x + 0.5 - myPos[0];
+		const dy = state.y + 0.5 - myPos[1];
+		const headingDegrees = Math.atan2(dy, dx) * 180 / Math.PI;
+		document.getElementById("territoryTokenArrow").style.transform = "rotate(" + headingDegrees + "deg)";
+		document.getElementById("territoryTokenDistance").textContent =
+			Math.round(Math.hypot(dx, dy)) + " tiles to token";
+	}
+}
+
 function drawRadarMinimap() {
 	if (!radarCtx) return;
 	radarCtx.clearRect(0, 0, 160, 160);
@@ -4544,6 +4662,8 @@ function loop(timeStamp) {
 		drawBlocks(ctx, blocks, true);
 		drawSpeedBooster(ctx);
 		drawExtraPowerUps(ctx);
+		drawTerritoryToken(ctx);
+		updateTerritoryTokenHud();
 		updateSpeedBoostHud();
 		updatePowerUpHud();
 		drawRadarMinimap();

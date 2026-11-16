@@ -157,6 +157,8 @@ export class WebSocketConnection {
 			POWERUP_STATE: 28,
 			RADAR_CONTACTS: 29,
 			SCORE_BONUS: 30,
+			TERRITORY_TOKEN_STATE: 31,
+			TERRITORY_TOKEN_REWARD: 32,
 		};
 	}
 
@@ -311,6 +313,7 @@ export class WebSocketConnection {
 			this.sendBoostLocation(this.#game.boostManager.location);
 			this.sendPowerUpLocations(this.#game.powerUpManager.locations);
 			this.sendPowerUpState(this.#player.powerUps.snapshot(performance.now()));
+			this.sendTerritoryTokenState(this.#game.territoryTokenManager.getState());
 			this.#sendReady();
 			this.#sendLegacyReady();
 		} else if (messageType == WebSocketConnection.ReceiveAction.PING) {
@@ -492,6 +495,34 @@ export class WebSocketConnection {
 		view.setUint8(0, WebSocketConnection.SendAction.SCORE_BONUS);
 		view.setUint32(1, bonus >>> 0, false);
 		this.send(buffer);
+	}
+
+	/**
+	 * Broadcast a fixed 13-byte objective snapshot. The timestamp is a relative
+	 * remaining duration, never a client-authoritative countdown.
+	 * Layout: action(1), phase(1), x(2), y(2), ownerId(2), captures(1), remainingMs(4).
+	 * @param {import("./gameplay/TerritoryTokenManager.js").TokenRoundState} state
+	 */
+	sendTerritoryTokenState(state) {
+		const phases = { inactive: 0, available: 1, held: 2, won: 3, expired: 4 };
+		const view = new DataView(new ArrayBuffer(13));
+		view.setUint8(0, WebSocketConnection.SendAction.TERRITORY_TOKEN_STATE);
+		view.setUint8(1, phases[state.phase] || 0);
+		view.setUint16(2, state.x, false);
+		view.setUint16(4, state.y, false);
+		view.setUint16(6, state.ownerId, false);
+		view.setUint8(8, state.captures);
+		view.setUint32(9, Math.max(0, Math.floor(state.remainingMs)), false);
+		this.send(view.buffer);
+	}
+
+	/** @param {number} rewardMilli @param {number} sessionTotalMilli */
+	sendTerritoryTokenReward(rewardMilli, sessionTotalMilli) {
+		const view = new DataView(new ArrayBuffer(7));
+		view.setUint8(0, WebSocketConnection.SendAction.TERRITORY_TOKEN_REWARD);
+		view.setUint16(1, rewardMilli, false);
+		view.setUint32(3, sessionTotalMilli >>> 0, false);
+		this.send(view.buffer);
 	}
 
 	#sendReady() {

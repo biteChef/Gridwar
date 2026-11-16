@@ -88,7 +88,7 @@ if (!Deno.args.includes("--no-init")) {
 
 	/** Directories that should be served using serveDir() */
 	const serveRootDirs = [
-		"adminpanel",
+		"adminPanel",
 		"shared",
 		"deps",
 		"client",
@@ -98,6 +98,9 @@ if (!Deno.args.includes("--no-init")) {
 		port: 8080,
 	}, async (request, info) => {
 		const url = new URL(request.url);
+		if (url.pathname == "/adminpanel" || url.pathname == "/adminpanel/") {
+			return Response.redirect(new URL("/adminPanel/", request.url), 308);
+		}
 		if (url.pathname == "/") {
 			return new Response(
 				`
@@ -117,7 +120,7 @@ if (!Deno.args.includes("--no-init")) {
 								<li><a href="/client/">/client/</a> - The splix client.</li>
 								<li><a href="/client/flags.html">/client/flags.html</a> - Client flags for debugging etc.</li>
 								<li>/gameserver - The gameserver, <a href="/client/#ip=ws://localhost:8080/gameserver">click here to connect to it using a client</a></li>
-								<li><a href="/adminpanel/">/adminpanel/</a> - Admin dashboard (requires admin credentials).</li>
+								<li><a href="/adminPanel/">/adminPanel/</a> - Admin dashboard (requires admin credentials).</li>
 								<li>/servermanager/ - Hosts several endpoints for servermanagement.</li>
 								<li><a href="/servermanager/gameservers">/servermanager/gameservers</a> - Endpoint which can be used by clients to list available servers.</li>
 							</ul>

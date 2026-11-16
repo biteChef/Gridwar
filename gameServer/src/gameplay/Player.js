@@ -410,6 +410,12 @@ export class Player {
 				this.#currentPositionChanged();
 				continue;
 			}
+			// Never append an invalid wall coordinate to the trail or query
+			// tiles beyond the map. A missing/blocked shield is a normal death.
+			if (this.#isWallPosition(this.#currentPosition)) {
+				this.#killPlayer(this, "arena-bounds");
+				break;
+			}
 			if (this.isGeneratingTrail) {
 				this.#addTrailVertex(desiredPosition);
 			}
@@ -792,7 +798,13 @@ export class Player {
 					// Rewind from the boundary and move one safe tile sideways.
 					// A successful deflection is still checked against normal
 					// enemy trails and arena rules on that new position.
-					this.#tryWallShieldDeflection(previousPosition);
+					const deflected = this.#tryWallShieldDeflection(previousPosition);
+					// Failed or absent protection must trigger ordinary death
+					// before #updateCurrentTile reads the invalid coordinate.
+					if (!deflected && this.#isWallPosition(this.#currentPosition)) {
+						this.#killPlayer(this, "arena-bounds");
+						break;
+					}
 					if (!this.isSpectator) {
 						this.#updateCurrentTile(previousPosition);
 					}
@@ -856,6 +868,14 @@ export class Player {
 			Math.random() < 0.5,
 		);
 		if (!redirect || !this.powerUps.consumeWallShield()) return false;
+		// Splix trails are polylines with exclusively horizontal/vertical
+		// segments. Record the pre-deflection point as a turning vertex
+		// BEFORE moving sideways; otherwise the next turn or capture may
+		// connect diagonal vertices, throw an assertion and disconnect.
+		if (this.isGeneratingTrail) {
+			this.#addTrailVertex(previousPosition);
+			this.game.broadcastPlayerTrail(this);
+		}
 		this.#currentPosition.set(redirect.position.x, redirect.position.y);
 		this.#currentDirection = redirect.direction;
 		this.#lastUnpausedDirection = redirect.direction;

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+<title>Ghost Mode</title>
+<path d="M15 32c0-14 7-25 17-25s17 11 17 25v22l-8-5.3L32 55l-9-6.3-8 5.3V32Z" fill="#E7F7FF" stroke="#29475A" stroke-width="3.8" stroke-linejoin="round"/>
+<path d="M19 31c.2-9.4 5.5-18 13-18" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+<ellipse cx="26" cy="32" rx="4.4" ry="6" fill="#20384C"/>
+<ellipse cx="39" cy="32" rx="4.4" ry="6" fill="#20384C"/>
+<circle cx="27.5" cy="30.5" r="1.7" fill="#FFFFFF"/>
+<circle cx="40.5" cy="30.5" r="1.7" fill="#FFFFFF"/>
+<ellipse cx="32.5" cy="43" rx="3.2" ry="2.2" fill="#85CBDD"/>
+</svg>

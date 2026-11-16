@@ -4633,6 +4633,19 @@ function loop(timeStamp) {
 					}
 				}
 			}
+			// Wall Shield deflection is authoritative on the server. Don't
+			// prematurely play the local wall-death animation while the
+			// player has a ready one-use charge; the server will either
+			// correct the turn or send a confirmed death packet.
+			if (
+				player.isMyPlayer && powerUpEnds[5] > Date.now() &&
+				(
+					player.drawPos[0] <= 0 || player.drawPos[1] <= 0 ||
+					player.drawPos[0] >= mapSize - 1 || player.drawPos[1] >= mapSize - 1
+				)
+			) {
+				playerShouldBeDead = false;
+			}
 			if (playerShouldBeDead) {
 				if (!player.isDead) {
 					player.die();

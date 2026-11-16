@@ -1,17 +1,17 @@
 /**
  * Gridwar power-up artwork.
  *
- * Assets are scalable SVGs with transparent backgrounds. Image objects are
+ * Assets are lightweight transparent WebP images from the approved first icon set. Image objects are
  * loaded once; drawing them on the game canvas never triggers per-frame fetches.
  * This is strictly visual: game logic and wire protocol remain untouched.
  */
 export const POWER_UP_ART = Object.freeze({
-	speed: Object.freeze({ name: "Speed Boost", color: "#F6C451", src: "./static/img/powerups/speed.svg" }),
-	shield: Object.freeze({ name: "Shield", color: "#4BBAF0", src: "./static/img/powerups/shield.svg" }),
-	radar: Object.freeze({ name: "Radar", color: "#AB8CF3", src: "./static/img/powerups/radar.svg" }),
-	ghost: Object.freeze({ name: "Ghost Mode", color: "#BCE9FF", src: "./static/img/powerups/ghost.svg" }),
-	double: Object.freeze({ name: "Double Score", color: "#EEBF47", src: "./static/img/powerups/double.svg" }),
-	repair: Object.freeze({ name: "Trail Repair", color: "#6EDF9C", src: "./static/img/powerups/repair.svg" }),
+	speed: Object.freeze({ name: "Speed Boost", color: "#FFD149", src: "./static/img/powerups/speed.webp" }),
+	shield: Object.freeze({ name: "Shield", color: "#F7C33D", src: "./static/img/powerups/shield.webp" }),
+	radar: Object.freeze({ name: "Radar", color: "#66ED60", src: "./static/img/powerups/radar.webp" }),
+	ghost: Object.freeze({ name: "Ghost Mode", color: "#D8EDFF", src: "./static/img/powerups/ghost.webp" }),
+	double: Object.freeze({ name: "Double Score", color: "#F6C849", src: "./static/img/powerups/double.webp" }),
+	repair: Object.freeze({ name: "Trail Repair", color: "#F8C23A", src: "./static/img/powerups/repair.webp" }),
 });
 
 /** Exact ID ordering is defined by server PowerUpState.POWER_UP_TYPES. */
@@ -22,7 +22,7 @@ export const MAP_POWER_UP_TYPES = Object.freeze([
 /** @type {Map<string, HTMLImageElement>} */
 const cachedImages = new Map();
 
-/** Call once on page load; SVGs are cached and reused in every rendered frame. */
+/** Call once on page load; images are cached and reused in every rendered frame. */
 export function preloadPowerUpIcons() {
 	if (typeof Image == "undefined") return;
 	for (const [key, def] of Object.entries(POWER_UP_ART)) {
@@ -57,36 +57,29 @@ export function drawPowerUpIconOnMap(ctx, tileX, tileY, type, now) {
 	const pulse = 0.70 + 0.15 * Math.sin(now * 0.004 + tileX * 0.3 + tileY * 0.2);
 
 	ctx.save();
-	// Four light squares preserve the readable 2x2 territory footprint.
+	// Keep the 2x2 territory footprint, but remove the former circular badge.
+	// The approved icons already have their own bold, dark outlines.
 	ctx.fillStyle = def.color;
-	ctx.globalAlpha = 0.20 + pulse * 0.22;
+	ctx.globalAlpha = 0.10 + pulse * 0.11;
 	for (let dx = 0; dx < 2; dx++) {
 		for (let dy = 0; dy < 2; dy++) {
 			ctx.fillRect(x + 0.8 + dx * 10, y + 0.8 + dy * 10, 8.4, 8.4);
 		}
 	}
-	ctx.globalAlpha = 0.96;
-	ctx.lineWidth = 1;
-	ctx.strokeStyle = def.color;
-	ctx.strokeRect(x + 0.6, y + 0.6, 18.8, 18.8);
-	// Dark center provides consistent contrast above any player's territory.
-	ctx.fillStyle = "rgba(22, 37, 36, 0.89)";
-	ctx.beginPath();
-	ctx.arc(x + 10, y + 10, 8.15, 0, Math.PI * 2);
-	ctx.fill();
+	ctx.globalAlpha = 0.58;
 	ctx.lineWidth = 0.75;
 	ctx.strokeStyle = def.color;
-	ctx.stroke();
+	ctx.strokeRect(x + 0.5, y + 0.5, 19, 19);
+	ctx.globalAlpha = 1;
 
 	const img = cachedImages.get(type);
 	if (img?.complete && img.naturalWidth > 0) {
-		ctx.drawImage(img, x + 3, y + 3, 14, 14);
+		// Show the actual generated artwork without enclosing it in a circle.
+		ctx.drawImage(img, x + 0.25, y + 0.25, 19.5, 19.5);
 	} else {
-		// Brief loading/offline fallback: recognizable neutral glint, not a letter.
-		ctx.fillStyle = "#F4FBF4";
-		ctx.beginPath();
-		ctx.arc(x + 10, y + 10, 3, 0, Math.PI * 2);
-		ctx.fill();
+		// Loading/offline fallback stays square, never a letter or a circle.
+		ctx.fillStyle = def.color;
+		ctx.fillRect(x + 7, y + 7, 6, 6);
 	}
 	ctx.restore();
 }

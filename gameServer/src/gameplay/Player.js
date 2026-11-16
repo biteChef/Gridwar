@@ -358,6 +358,13 @@ export class Player {
 			if (validity == "valid-direction") {
 				desiredPosition = this.#currentPosition.clone();
 			}
+			// Client turns must never teleport the server to or past a wall.
+			// Reject the impossible coordinate BEFORE changing position.
+			if (this.#isWallPosition(desiredPosition)) {
+				this.#movementQueue.shift();
+				lastMoveWasInvalid = true;
+				continue;
+			}
 
 			if (this.#isFuturePosition(desiredPosition)) {
 				// The position is valid, but the player hasn't reached this location yet.
@@ -402,19 +409,6 @@ export class Player {
 			this.#currentDirection = firstItem.direction;
 			if (firstItem.direction != "paused") {
 				this.#lastUnpausedDirection = firstItem.direction;
-			}
-			// The server may receive a queued turn at the boundary before the
-			// next tick. Deflect before committing an out-of-bounds trail vertex.
-			if (this.#tryWallShieldDeflection(previousPosition)) {
-				if (!this.isSpectator) this.#updateCurrentTile(previousPosition);
-				this.#currentPositionChanged();
-				continue;
-			}
-			// Never append an invalid wall coordinate to the trail or query
-			// tiles beyond the map. A missing/blocked shield is a normal death.
-			if (this.#isWallPosition(this.#currentPosition)) {
-				this.#killPlayer(this, "arena-bounds");
-				break;
 			}
 			if (this.isGeneratingTrail) {
 				this.#addTrailVertex(desiredPosition);
@@ -784,26 +778,29 @@ export class Player {
 				movedTiles++;
 
 				const previousPosition = this.#currentPosition.clone();
+				const proposedPosition = previousPosition.clone();
 				if (this.currentDirection == "left") {
-					this.#currentPosition.x -= 1;
+					proposedPosition.x -= 1;
 				} else if (this.currentDirection == "right") {
-					this.#currentPosition.x += 1;
+					proposedPosition.x += 1;
 				} else if (this.currentDirection == "up") {
-					this.#currentPosition.y -= 1;
+					proposedPosition.y -= 1;
 				} else if (this.currentDirection == "down") {
-					this.#currentPosition.y += 1;
+					proposedPosition.y += 1;
 				}
 
 				try {
-					// Rewind from the boundary and move one safe tile sideways.
-					// A successful deflection is still checked against normal
-					// enemy trails and arena rules on that new position.
-					const deflected = this.#tryWallShieldDeflection(previousPosition);
-					// Failed or absent protection must trigger ordinary death
-					// before #updateCurrentTile reads the invalid coordinate.
-					if (!deflected && this.#isWallPosition(this.#currentPosition)) {
-						this.#killPlayer(this, "arena-bounds");
-						break;
+					// Validate before committing the move: neither a spectator
+					// nor an unprotected player is allowed to occupy wall tiles.
+					// A shield deflection commits ONLY a safe sideways position.
+					if (this.#isWallPosition(proposedPosition)) {
+						const deflected = this.#tryWallShieldDeflection(previousPosition, proposedPosition);
+						if (!deflected) {
+							this.#killPlayer(this, "arena-bounds");
+							break;
+						}
+					} else {
+						this.#currentPosition.set(proposedPosition);
 					}
 					if (!this.isSpectator) {
 						this.#updateCurrentTile(previousPosition);
@@ -845,12 +842,13 @@ export class Player {
 	 * Wall Shield is one use. Its sideways push happens only when a safe,
 	 * adjacent route exists; otherwise the original wall collision applies.
 	 * @param {Vec2} previousPosition
+	 * @param {Vec2} proposedPosition Must be the adjacent blocked tile.
 	 */
-	#tryWallShieldDeflection(previousPosition) {
-		if (!this.#isWallPosition(this.#currentPosition) || !this.hasPowerUp("wall") ||
+	#tryWallShieldDeflection(previousPosition, proposedPosition) {
+		if (!this.#isWallPosition(proposedPosition) || !this.hasPowerUp("wall") ||
 			this.dead || this.isSpectator || this.#currentDirection == "paused") return false;
-		if (Math.abs(previousPosition.x - this.#currentPosition.x) +
-			Math.abs(previousPosition.y - this.#currentPosition.y) != 1) return false;
+		if (Math.abs(previousPosition.x - proposedPosition.x) +
+			Math.abs(previousPosition.y - proposedPosition.y) != 1) return false;
 		const chooseSafe = (position) => {
 			if (this.#isWallPosition(position)) return false;
 			for (const other of this.game.getOverlappingTrailBoundsPlayersForPos(position)) {

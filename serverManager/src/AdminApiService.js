@@ -138,7 +138,11 @@ export class AdminApiService {
 			return json({ entries: await this.#auth.recentAudit() });
 		}
 		if (path === "servers" && request.method === "POST") {
+			const parsed = await jsonBody(request);
+			const config = validateServerConfig(parsed);
+			if (!config) return json({ error: "Invalid server configuration" }, 400);
 			const id = this.#main.servermanager.createGameServer();
+			this.#main.servermanager.setGameServerConfig(id, config);
 			await this.#auth.recordAudit(identity.username, "server.create", "Created server #" + id);
 			return json({ id, servers: this.#getServers() }, 201);
 		}

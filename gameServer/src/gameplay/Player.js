@@ -849,6 +849,13 @@ export class Player {
 			}
 		}
 
+		// Claim a booster that spawned in already-owned territory by entering
+		// one of its four cells. Run after collision checks so dying cannot
+		// grant a power-up on the same tile.
+		if (!this.dead && !this.isSpectator) {
+			this.game.boostManager.onPlayerEnteredTile(this, this.#currentPosition);
+		}
+
 		// Send new sections of the map when needed.
 		this.#sendRequiredEdgeChunks();
 	}

@@ -148,10 +148,11 @@ Other ongoing work may be on separate branches/PRs. Do not mark it shipped until
 
 - [x] Define the event: **one** random token location per arena, globally visible on the minimap with a directional guide.
 - [x] Define capture as territorial ownership: first holder must protect the tile for **30 seconds**.
-- [x] Define a takeover: second and third successful captures each start a **15-second** hold; **three captures maximum** per round.
-- [x] Specify a **0.75 in-game token** reward to the player completing a hold (not a real-wallet payout).
+- [x] Define takeover tiers: second capture requires a **15-second** hold; third capture wins **instantly, without a timer**. Maximum three captures per round.
+- [x] Specify capture-order rewards: **1.00 virtual token** for a successful 30-second first hold; **0.75** for a successful 15-second second hold; **0.50 immediately** for the third successful capture (session-only, not a real-wallet payout).
 - [ ] Review and test prototype PR [#6](https://github.com/biteChef/Gridwar/pull/6) (currently a draft; **not on main**).
-- [ ] Run all Deno tests, format/type checks, and actual multiplayer/browser play-tests.
+- [x] Update the feature's JavaScript test harness for all three reward tiers (10 in-memory test cases passed; **not a full Deno run**).
+- [ ] Run all Deno tests, format/type checks, and actual multiplayer/browser play-tests, including **responsive HUD stacking** with the existing speed/power-up panels.
 - [ ] Decide whether the event is available in all default arenas or a dedicated mode.
 - [ ] If persistent credit is desired, design cross-arena identity, idempotent reward storage and abuse controls; never treat client events as payouts.
 - [ ] Validate how the three-capture limit behaves during owner death, disconnect and territory reset.

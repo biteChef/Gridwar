@@ -14,6 +14,7 @@ import { lerp, Vec2 } from "renda";
 import { checkTrailSegment } from "../util/util.js";
 import { PlayerEventHistory } from "./PlayerEventHistory.js";
 import { SPEED_BOOST } from "./SpeedBoostManager.js";
+import { PowerUpState } from "./PowerUpState.js";
 
 /**
  * When sent inside messages, these translate to an integer:
@@ -86,6 +87,10 @@ export class Player {
 
 	/** Millisecond deadline on the server clock; boosts cannot be activated by client messages. */
 	#speedBoostExpiresAt = 0;
+	powerUps = new PowerUpState();
+	#bonusPoints = 0;
+	#collisionGraceUntil = 0;
+
 
 	/** @type {Direction} */
 	#currentDirection = "paused";
@@ -541,6 +546,42 @@ export class Player {
 		this.sendPlayerStateToPlayer(this);
 	}
 
+
+	/** @param {string} type */
+	grantPowerUp(type) {
+		if (this.dead || this.permanentlyDead || this.isSpectator) return;
+		if (!this.powerUps.grant(type, performance.now())) return;
+		this.#sendPowerUpState();
+	}
+
+	/** @param {string} type */
+	hasPowerUp(type) {
+		return this.powerUps.isActive(type, performance.now());
+	}
+
+	#sendPowerUpState() {
+		this.#connection.sendPowerUpState(this.powerUps.snapshot(performance.now()));
+	}
+
+	/**
+	 * Rescue is consumed only by a direct enemy hit on a vulnerable trail.
+	 * Shield leaves the existing trail active. Repair clears the current
+	 * exposed trail and starts a fresh trail on the next unowned tile.
+	 */
+	#consumeEnemyHitProtection() {
+		const saved = this.powerUps.consumeTrailDefense(performance.now());
+		if (!saved) return false;
+		this.#collisionGraceUntil = performance.now() + 1_100;
+		if (saved == "repair" && this.isGeneratingTrail) {
+			this.game.broadcastPlayerEmptyTrail(this);
+			this.#clearTrailVertices();
+			// Force normal trailing to resume on the next unowned step.
+			this.#currentTileType = this.id;
+		}
+		this.#sendPowerUpState();
+		return true;
+	}
+
 	/**
 	 * Sends the state of this player to `receivingPlayer`.
 	 * @param {import("./Player.js").Player} receivingPlayer
@@ -711,6 +752,7 @@ export class Player {
 	 * @param {number} dt
 	 */
 	loop(now, dt) {
+		if (this.powerUps.expire(performance.now())) this.#sendPowerUpState();
 		if (this.#speedBoostExpiresAt && performance.now() >= this.#speedBoostExpiresAt) {
 			this.#speedBoostExpiresAt = 0;
 			this.#broadcastSpeedBoost();
@@ -824,6 +866,7 @@ export class Player {
 			const includeLastSegments = player != this;
 			if (player.pointIsInTrail(this.#currentPosition, { includeLastSegments })) {
 				const killedSelf = player == this;
+				if (killedSelf && this.hasPowerUp("ghost")) continue;
 				if (player.dead || player.isSpectator || this.isSpectator) continue;
 
 				if (this.game.gameMode != "drawing") {
@@ -854,6 +897,7 @@ export class Player {
 		// grant a power-up on the same tile.
 		if (!this.dead && !this.isSpectator) {
 			this.game.boostManager.onPlayerEnteredTile(this, this.#currentPosition);
+			this.game.powerUpManager.onPlayerEnteredTile(this, this.#currentPosition);
 		}
 
 		// Send new sections of the map when needed.
@@ -981,6 +1025,10 @@ export class Player {
 	 */
 	#killPlayer(otherPlayer, deathType) {
 		if (otherPlayer.dead) return false;
+		if (deathType == "player" && otherPlayer != this) {
+			if (otherPlayer.#collisionGraceUntil > performance.now()) return false;
+			if (otherPlayer.isGeneratingTrail && otherPlayer.#consumeEnemyHitProtection()) return false;
+		}
 		this.#eventHistory.addEvent(this.getPosition(), {
 			type: "kill-player",
 			playerId: otherPlayer.id,
@@ -1008,6 +1056,8 @@ export class Player {
 			this.#speedBoostExpiresAt = 0;
 			this.#broadcastSpeedBoost();
 		}
+		this.powerUps.clear();
+		this.#sendPowerUpState();
 		this.#lastDeathState = {
 			dieTime: performance.now(),
 			type: deathType,
@@ -1168,6 +1218,14 @@ export class Player {
 			this.id,
 			Array.from(this.game.getUnfillableLocations(this)),
 		);
+		// Bonus points are independent of tile ownership. Only a positive
+		// capture increment counts, so losing/reclaiming cannot inflate scores.
+		const added = Math.max(0, totalFilledTileCount - this.#capturedTileCount);
+		const bonus = this.powerUps.captureBonus(added, performance.now());
+		if (bonus) {
+			this.#bonusPoints += bonus;
+			this.#connection.sendScoreBonus(this.#bonusPoints);
+		}
 		this.#setCapturedTileCount(totalFilledTileCount);
 	}
 
@@ -1217,7 +1275,7 @@ export class Player {
 	}
 
 	getTotalScore() {
-		return this.#capturedTileCount + this.#killCount * 500;
+		return this.#capturedTileCount + this.#killCount * 500 + this.#bonusPoints;
 	}
 
 	getTotalKill() {

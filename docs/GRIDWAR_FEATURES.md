@@ -4,9 +4,9 @@ This feature branch comes directly from Gridwar main. It does NOT include the ea
 
 ## 2x2 territory speed booster
 
-- The server spawns one highlighted golden patch measuring 2x2 grid cells in an unclaimed area.
-- Capture requires ALL FOUR tiles to be owned by one living, non-spectator player. Simply walking over or enclosing only part of the patch is not enough.
-- A successful claim consumes the patch and grants 1.5x movement for 8 seconds.
+- The server spawns one highlighted golden patch measuring 2x2 grid cells on neutral OR already captured territory. It prefers a fully captured 2x2 region on approximately half of spawns; otherwise it chooses a valid walkable patch.
+- To collect: a player capturing new land must claim ALL FOUR tiles; when the patch appears inside territory already owned, its owner must actively MOVE ONTO a tile within the 2x2 patch. It is NOT automatically collected on spawn. An opponent can also capture all four tiles to earn it.
+- A successful collection consumes the patch and grants 1.5x movement for 10 seconds.
 - The next patch spawns after a 20-second delay. Boosts are not accumulated.
 - On death, the player loses their boost.
 - Movement, ownership, and collision detection remain server-authoritative. Clients receive WebSocket packet 25 for patch location and packet 26 for player boost state.
@@ -63,7 +63,7 @@ Production deployment must expose the same-origin account API and WS endpoint ov
 
 ## Tests and limitations
 
-- tests/speedBoost.test.js covers 2x2 ownership, eligibility, placement and respawn timing.
+- tests/speedBoost.test.js covers 2x2 ownership, neutral/captured placement, active re-collection by the existing owner, opposing capture, eligibility and respawn timing.
 - tests/accounts.test.js covers guest access, registration, secure cookies, login, duplicate usernames, logout and Origin checks.
 - Full multiplayer browser and server integration testing with Deno is still required before merging.
 - A future release should support authenticated per-account statistics and account recovery.

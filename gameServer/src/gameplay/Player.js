@@ -89,6 +89,7 @@ export class Player {
 	#speedBoostExpiresAt = 0;
 	powerUps = new PowerUpState();
 	#bonusPoints = 0;
+	#territoryTokenEarnedMilli = 0; // Session-only virtual reward, not a wallet balance.
 	#collisionGraceUntil = 0;
 
 
@@ -546,6 +547,18 @@ export class Player {
 		this.sendPlayerStateToPlayer(this);
 	}
 
+
+	/**
+	 * Award in-session virtual game tokens for the territory-token event.
+	 * Real token payouts and persistence require a separate trusted ledger.
+	 * @param {number} milliTokens
+	 */
+	grantTerritoryTokenReward(milliTokens) {
+		if (this.dead || this.permanentlyDead || this.isSpectator) return;
+		if (!Number.isSafeInteger(milliTokens) || milliTokens <= 0) return;
+		this.#territoryTokenEarnedMilli += milliTokens;
+		this.#connection.sendTerritoryTokenReward(milliTokens, this.#territoryTokenEarnedMilli);
+	}
 
 	/** @param {string} type */
 	grantPowerUp(type) {

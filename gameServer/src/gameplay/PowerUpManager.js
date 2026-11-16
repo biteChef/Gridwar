@@ -86,6 +86,8 @@ export class PowerUpManager {
 
 	/** @param {number} x @param {number} y */
 	#overlapsExisting(x, y) {
+		const token = this.#game.territoryTokenManager?.location;
+		if (token && token.x >= x && token.x < x + 2 && token.y >= y && token.y < y + 2) return true;
 		const speed = this.#game.boostManager.location;
 		if (speed && x < speed.x + 2 && x + 2 > speed.x &&
 			y < speed.y + 2 && y + 2 > speed.y) return true;

@@ -3,6 +3,7 @@
 import { lerp, SingleInstancePromise, Vec2 } from "renda";
 import { Arena } from "./Arena.js";
 import { SpeedBoostManager } from "./SpeedBoostManager.js";
+import { TerritoryTokenManager } from "./TerritoryTokenManager.js";
 import { PowerUpManager } from "./PowerUpManager.js";
 import { Player } from "./Player.js";
 import { WebSocketConnection } from "../WebSocketConnection.js";
@@ -77,6 +78,7 @@ export class Game {
 		this.#arena = new Arena(arenaWidth, arenaHeight, pitWidth, pitHeight, gameMode);
 		this.boostManager = new SpeedBoostManager(this);
 		this.powerUpManager = new PowerUpManager(this);
+		this.territoryTokenManager = new TerritoryTokenManager(this);
 		this.#arena.onRectFilled((rect, tileValue) => {
 			for (const player of this.getOverlappingViewportPlayersForRect(rect)) {
 				const { colorId, patternId } = this.getTileTypeForMessage(player, tileValue);
@@ -84,6 +86,7 @@ export class Game {
 			}
 			this.boostManager.onRectFilled(rect);
 			this.powerUpManager.onRectFilled(rect);
+			this.territoryTokenManager.onRectFilled(rect);
 		});
 
 		this.#updateNextMinimapPartInstance = new SingleInstancePromise(() => this.#updateNextMinimapPart());
@@ -107,6 +110,7 @@ export class Game {
 		}
 		this.boostManager.loop(this.boostClock());
 		this.powerUpManager.loop(this.boostClock());
+		this.territoryTokenManager.loop(this.boostClock());
 		if (now - this.#lastRadarUpdate >= 500) {
 			this.#lastRadarUpdate = now;
 			this.#sendRadarUpdates();
@@ -180,6 +184,23 @@ export class Game {
 			}
 			viewer.connection.sendRadarContacts(contacts);
 		}
+	}
+
+	/** Broadcast the single token objective to every participant, including spectators. */
+	/** @param {import("./TerritoryTokenManager.js").TokenRoundState} state */
+	broadcastTerritoryTokenState(state) {
+		for (const player of this.#players.values()) {
+			player.connection.sendTerritoryTokenState(state);
+		}
+	}
+
+	/** Number of living, non-spectating players who can contest the token. */
+	getEligibleTokenPlayerCount() {
+		let count = 0;
+		for (const player of this.#players.values()) {
+			if (!player.dead && !player.permanentlyDead && !player.isSpectator) count++;
+		}
+		return count;
 	}
 
 	/** Send the active 2x2 patch to every player; new joiners get it separately. */

@@ -95,6 +95,28 @@ Testing: tests/wallShield.test.js covers all boundary directions, corners,
 side selection, blocked paths and invalid headings. The existing pickup and
 power-up state tests cover spawning and one-use collection.
 
+### Further wall/disconnection hardening
+
+- Validate proposed server movement BEFORE changing the player's coordinate.
+  A normal death now occurs at the last valid tile instead of placing the
+  player inside a wall.
+- Reject client-supplied turns that request a wall tile or an out-of-bounds
+  position, preventing client/server desynchronization.
+- On the client, clamp predicted player rendering to the playable outer
+  map edge while waiting for a confirmed server turn or death event.
+- Local development selects `ws://localhost:8080/gameserver` by default
+  rather than an unrelated saved or public Splix server. Other servers
+  remain available for selection.
+- Browser Console logs the WebSocket close code and reason to distinguish
+  server exceptions from normal disconnects.
+- `tests/wallShieldPlayer.test.js` also covers invalid client turns,
+  multiple-tile lagged ticks, safe wall-death coordinates, and the
+  `GAME_OVER` packet for an unprotected wall collision.
+
+The browser and Deno server still require a real local multiplayer playtest
+before merging the draft PR. For a direct local connection, open:
+`http://localhost:8080/client/#ip=ws://localhost:8080/gameserver`.
+
 ## Optional accounts with immediate guest play
 
 - The existing Join button still works without logging in. Guest entry is immediate.

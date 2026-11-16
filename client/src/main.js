@@ -1552,7 +1552,12 @@ function showBeginHideMainCanvas() {
 }
 
 //when WebSocket connection is closed
-function onClose() {
+function onClose(evt) {
+	if (evt && typeof evt.code == "number") {
+		console.warn("[Gridwar] Game WebSocket closed", {
+			code: evt.code, reason: evt.reason, clean: evt.wasClean,
+		});
+	}
 	if (!!ws && ws.readyState == WebSocket.OPEN) {
 		ws.close();
 	}
@@ -4592,10 +4597,24 @@ function loop(timeStamp) {
 					}
 				}
 				movePos(player.pos, player.dir, offset);
+				if (player.isMyPlayer && mapSize > 3) {
+					// Predicted movement must not continue through solid
+					// outer walls while awaiting the server's authoritative
+					// Wall Shield turn or an ordinary game-over event.
+					const edge = mapSize - 2;
+					player.pos[0] = clamp(player.pos[0], 1, edge);
+					player.pos[1] = clamp(player.pos[1], 1, edge);
+					player.serverPos[0] = clamp(player.serverPos[0], 1, edge);
+					player.serverPos[1] = clamp(player.serverPos[1], 1, edge);
+				}
 			}
 			player.moveRelativeToServerPosNextFrame = false;
 
 			moveDrawPosToPos(player);
+			if (player.isMyPlayer && mapSize > 3) {
+				player.drawPos[0] = clamp(player.drawPos[0], 1, mapSize - 2);
+				player.drawPos[1] = clamp(player.drawPos[1], 1, mapSize - 2);
+			}
 
 			//test if player should be dead
 			var playerShouldBeDead = false;

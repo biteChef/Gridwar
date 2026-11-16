@@ -131,6 +131,8 @@ if (!Deno.args.includes("--no-init")) {
 					},
 				},
 			);
+		} else if (url.pathname.startsWith("/api/account/")) {
+			return gameServer.accountService.handleRequest(request, info.remoteAddr?.hostname || "unknown");
 		} else if (url.pathname == "/gameserver") {
 			return gameServer.websocketManager.handleRequest(request, info);
 		} else if (url.pathname.startsWith("/servermanagerToken")) {

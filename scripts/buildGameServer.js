@@ -11,6 +11,9 @@ await buildExecutable({
 	permissionFlags: [
 		"--allow-net",
 		"--allow-read",
+		"--allow-write", // Deno KV persists accounts locally
+		"--allow-env", // optional GRIDWAR_KV_PATH
+		"--unstable-kv",
 	],
 	include: [
 		resolve("gameServer/src/gameplay/arenaWorker/mod.js"),

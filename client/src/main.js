@@ -1,4 +1,5 @@
 import { refreshBanner, showFullScreenAd, updateAdlad } from "./ads.js";
+import { initAccountUI } from "./accountUI.js";
 import {
 	BLOCKS_ON_SCREEN,
 	DEFAULT_PROTOCOL_VERSION,
@@ -134,6 +135,13 @@ var lastClientsideMoves = [],
 	isRequestingMyTrail = false,
 	skipTrailRequestResponse = false;
 var mapSize = 2000, closedBecauseOfDeath = false, minimapCtx, beginScreenVisible = true, wsOnOpenTime;
+var speedBoosterPos = null;
+var powerUpPatches = [];
+var powerUpEnds = [0, 0, 0, 0, 0];
+var powerUpBonus = 0;
+var radarContacts = [];
+var radarCanvas = null;
+var radarCtx = null;
 var minimapCanvas;
 var canvasQuality = 1,
 	currentDtCap = 0,
@@ -244,6 +252,12 @@ var receiveAction = {
 	UNDO_PLAYER_DIE: 22,
 	TEAM_LIFE_COUNT: 23,
 	PLAYER_IS_SPECTATOR: 24,
+	BOOST_LOCATION: 25,
+	PLAYER_BOOST: 26,
+	POWERUP_LOCATIONS: 27,
+	POWERUP_STATE: 28,
+	RADAR_CONTACTS: 29,
+	SCORE_BONUS: 30,
 };
 
 var sendAction = {
@@ -914,6 +928,8 @@ function getPlayer(id, array) {
 		},
 		moveRelativeToServerPosNextFrame: false, //if true, lastServerPosSentTime will be used instead of deltatime for one frame
 		lastServerPosSentTime: 0,
+		boostMultiplier: 1,
+		boostUntil: 0,
 		honkTimer: 0,
 		honkMaxTime: 0,
 		trails: [],
@@ -1018,6 +1034,11 @@ async function sendPeliCode() {
 	wsSendMsg(sendAction.PELI_AUTH_CODE, code);
 }
 
+// Use the same speed for prediction, turn queues and network corrections.
+function getClientPlayerSpeed(player) {
+	return GLOBAL_SPEED * (player && player.boostUntil > Date.now() ? player.boostMultiplier : 1);
+}
+
 //sends new direction to websocket
 var lastSendDir = -1, lastSendDirTime = 0; //used to prevent spamming buttons
 function sendDir(dir, skipQueue) {
@@ -1033,7 +1054,7 @@ function sendDir(dir, skipQueue) {
 	//prevent spamming sendDir function
 	if (
 		dir == lastSendDir && //if dir is same as old sendDir call
-		(Date.now() - lastSendDirTime) < 0.7 / GLOBAL_SPEED // if last call was less than 'one block travel time' ago
+		(Date.now() - lastSendDirTime) < 0.7 / getClientPlayerSpeed(myPlayer) // prevent spam based on effective speed
 	) {
 		return false;
 	}
@@ -1330,6 +1351,12 @@ window.onload = function () {
 	ctx = mainCanvas.getContext("2d");
 	minimapCanvas = document.getElementById("minimapCanvas");
 	minimapCtx = minimapCanvas.getContext("2d");
+	radarCanvas = document.createElement("canvas");
+	radarCanvas.id = "powerUpRadarCanvas";
+	radarCanvas.width = 160;
+	radarCanvas.height = 160;
+	radarCtx = radarCanvas.getContext("2d");
+	document.getElementById("miniMap").appendChild(radarCanvas);
 	linesCanvas = document.createElement("canvas");
 	linesCtx = linesCanvas.getContext("2d");
 	tempCanvas = document.createElement("canvas");
@@ -1423,6 +1450,7 @@ window.onload = function () {
 	setSpectatorText();
 
 	initTutorial();
+	initAccountUI();
 	initSkinScreen();
 	initTitle();
 	setLeaderboardVisibility();
@@ -1640,6 +1668,76 @@ function onMessage(evt) {
 	// console.log(evt);
 	var x, y, type, id, player, w, h, block, i, j, nameBytes;
 	var data = new Uint8Array(evt.data);
+	if (data[0] == receiveAction.POWERUP_LOCATIONS) {
+		if (data.length < 2 || data.length != 2 + data[1] * 5) return;
+		powerUpPatches = [];
+		for (let idx = 0; idx < data[1]; idx++) {
+			const at = 2 + idx * 5;
+			powerUpPatches.push({
+				typeId: data[at],
+				x: bytesToInt(data[at + 1], data[at + 2]),
+				y: bytesToInt(data[at + 3], data[at + 4]),
+			});
+		}
+		return;
+	}
+	if (data[0] == receiveAction.POWERUP_STATE) {
+		if (data.length !== 11) return;
+		const now = Date.now();
+		for (let idx = 0; idx < 5; idx++) {
+			const remaining = bytesToInt(data[1 + idx * 2], data[2 + idx * 2]);
+			powerUpEnds[idx] = idx == 4 ? (remaining > 0 ? Number.MAX_SAFE_INTEGER : 0) : (remaining ? now + remaining : 0);
+		}
+		if (!powerUpEnds[1]) radarContacts = [];
+		return;
+	}
+	if (data[0] == receiveAction.SCORE_BONUS) {
+		if (data.length !== 5) return;
+		powerUpBonus = bytesToInt(data[1], data[2], data[3], data[4]);
+		realScoreStatTarget = scoreStatTarget + (myKillsElem ? Number(myKillsElem.textContent) || 0 : 0) * 500 + powerUpBonus;
+		return;
+	}
+	if (data[0] == receiveAction.RADAR_CONTACTS) {
+		if (data.length < 2) return;
+		const decoded = [];
+		let cursor = 2;
+		for (let contactIndex = 0; contactIndex < data[1]; contactIndex++) {
+			if (cursor + 5 > data.length) return;
+			const x = bytesToInt(data[cursor], data[cursor + 1]);
+			const y = bytesToInt(data[cursor + 2], data[cursor + 3]);
+			const count = data[cursor + 4];
+			cursor += 5;
+			if (cursor + 4 * count > data.length) return;
+			const trail = [];
+			for (let t = 0; t < count; t++) {
+				trail.push({
+					x: bytesToInt(data[cursor], data[cursor + 1]),
+					y: bytesToInt(data[cursor + 2], data[cursor + 3]),
+				});
+				cursor += 4;
+			}
+			decoded.push({ x, y, trail });
+		}
+		if (cursor !== data.length) return;
+		radarContacts = decoded;
+		return;
+	}
+	if (data[0] == receiveAction.BOOST_LOCATION) {
+		if (data.length < 2) return;
+		speedBoosterPos = data[1] == 1 && data.length >= 6
+			? { x: bytesToInt(data[2], data[3]), y: bytesToInt(data[4], data[5]) }
+			: null;
+		return;
+	}
+	if (data[0] == receiveAction.PLAYER_BOOST) {
+		if (data.length < 9) return;
+		const boostedPlayer = getPlayer(bytesToInt(data[1], data[2]));
+		const multiplier = bytesToInt(data[3], data[4]) / 1000;
+		const remainingMs = bytesToInt(data[5], data[6], data[7], data[8]);
+		boostedPlayer.boostMultiplier = remainingMs > 0 ? Math.max(1, Math.min(2, multiplier)) : 1;
+		boostedPlayer.boostUntil = remainingMs > 0 ? Date.now() + remainingMs : 0;
+		return;
+	}
 	// console.log(evt.data);
 	// for(var key in receiveAction){
 	// 	if(receiveAction[key] == data[0]){
@@ -1669,7 +1767,7 @@ function onMessage(evt) {
 		//add distance traveled during server delay (ping/2)
 		var posOffset = 0;
 		if (player.isMyPlayer || thisServerAvgPing > 50) {
-			posOffset = thisServerAvgPing / 2 * GLOBAL_SPEED;
+			posOffset = thisServerAvgPing / 2 * getClientPlayerSpeed(player);
 		}
 		movePos(newPosOffset, newDir, posOffset);
 
@@ -1900,7 +1998,7 @@ function onMessage(evt) {
 			kills = bytesToInt(data[5], data[6]);
 		}
 		scoreStatTarget = score;
-		realScoreStatTarget = score + kills * 500;
+		realScoreStatTarget = score + kills * 500 + powerUpBonus;
 		myKillsElem.innerHTML = kills;
 	}
 	if (data[0] == receiveAction.MY_RANK) {
@@ -2213,6 +2311,14 @@ function resetAll() {
 	isConnecting = false;
 	blocks = [];
 	players = [];
+	speedBoosterPos = null;
+	powerUpPatches = [];
+	powerUpEnds = [0, 0, 0, 0, 0];
+	powerUpBonus = 0;
+	radarContacts = [];
+	if (radarCtx) radarCtx.clearRect(0, 0, 160, 160);
+	const boostHud = document.getElementById("speedBoostHud");
+	if (boostHud) boostHud.hidden = true;
 	camPosSet = false;
 	beginScreenVisible = true;
 	updateCmpPersistentLinkVisibility();
@@ -3619,6 +3725,127 @@ function drawTitle(ctx, time, isShadow, maxExtrude, extraShadow) {
 	}
 }
 
+// Draw the 2x2 power-up above ordinary map tiles. The surrounding game
+// graphics, original Splix tile renderer, and all mechanics remain intact.
+function drawSpeedBooster(ctx) {
+	if (!speedBoosterPos) return;
+	const { x, y } = speedBoosterPos;
+	if (Math.abs(x - camPos[0]) > VIEWPORT_RADIUS + 2 ||
+		Math.abs(y - camPos[1]) > VIEWPORT_RADIUS + 2) return;
+	const pulse = 0.86 + Math.sin(performance.now() * 0.005) * 0.14;
+	ctx.save();
+	ctx.fillStyle = "rgba(255, 195, 55, " + (0.3 * pulse) + ")";
+	ctx.strokeStyle = "#ffe180";
+	ctx.lineWidth = 0.6;
+	for (let dx = 0; dx < 2; dx++) {
+		for (let dy = 0; dy < 2; dy++) {
+			const px = (x + dx) * 10;
+			const py = (y + dy) * 10;
+			ctx.fillRect(px + 1, py + 1, 8, 8);
+			ctx.strokeRect(px + 1, py + 1, 8, 8);
+		}
+	}
+	// A simple vector lightning bolt, centered across the four-tile patch.
+	ctx.fillStyle = "#fff7c4";
+	ctx.beginPath();
+	ctx.moveTo(x * 10 + 11, y * 10 + 2);
+	ctx.lineTo(x * 10 + 6, y * 10 + 11);
+	ctx.lineTo(x * 10 + 10, y * 10 + 11);
+	ctx.lineTo(x * 10 + 9, y * 10 + 19);
+	ctx.lineTo(x * 10 + 15, y * 10 + 9);
+	ctx.lineTo(x * 10 + 11, y * 10 + 9);
+	ctx.closePath();
+	ctx.fill();
+	ctx.restore();
+}
+
+function updateSpeedBoostHud() {
+	const hud = document.getElementById("speedBoostHud");
+	if (!hud) return;
+	const remaining = myPlayer ? Math.max(0, myPlayer.boostUntil - Date.now()) : 0;
+	hud.hidden = remaining <= 0;
+	if (remaining > 0) {
+		document.getElementById("speedBoostTime").textContent = (remaining / 1000).toFixed(1) + "s";
+	}
+}
+
+const POWER_UP_VISUALS = [
+	{ label: "S", name: "Shield", color: "#4bbaf0" },
+	{ label: "R", name: "Radar", color: "#ab8cf3" },
+	{ label: "G", name: "Ghost", color: "#d4efff" },
+	{ label: "2×", name: "2× Score", color: "#eebf47" },
+	{ label: "+", name: "Repair", color: "#6edf9c" },
+];
+
+function drawExtraPowerUps(ctx) {
+	const now = performance.now();
+	for (const patch of powerUpPatches) {
+		if (Math.abs(patch.x - camPos[0]) > VIEWPORT_RADIUS + 3 ||
+			Math.abs(patch.y - camPos[1]) > VIEWPORT_RADIUS + 3) continue;
+		const visual = POWER_UP_VISUALS[patch.typeId - 1];
+		if (!visual) continue;
+		const px = patch.x * 10, py = patch.y * 10;
+		const pulse = 0.24 + 0.09 * Math.sin(now * 0.005 + patch.typeId);
+		ctx.save();
+		ctx.fillStyle = visual.color;
+		ctx.globalAlpha = pulse;
+		ctx.fillRect(px + 1, py + 1, 18, 18);
+		ctx.globalAlpha = 0.95;
+		ctx.strokeStyle = visual.color;
+		ctx.lineWidth = 1;
+		ctx.strokeRect(px + 1, py + 1, 18, 18);
+		ctx.fillStyle = visual.color;
+		ctx.font = "bold 12px sans-serif";
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.fillText(visual.label, px + 10, py + 10);
+		ctx.restore();
+	}
+}
+
+function updatePowerUpHud() {
+	const hud = document.getElementById("powerUpHud");
+	if (!hud) return;
+	const now = Date.now();
+	const display = [];
+	for (let idx = 0; idx < POWER_UP_VISUALS.length; idx++) {
+		const remaining = Math.max(0, powerUpEnds[idx] - now);
+		if (!remaining) continue;
+		const name = POWER_UP_VISUALS[idx].name;
+		const label = idx == 4 ? "ready" : (remaining / 1000).toFixed(1) + "s";
+		display.push(name + ": " + label);
+	}
+	hud.hidden = display.length == 0;
+	hud.textContent = display.join(" · ");
+}
+
+function drawRadarMinimap() {
+	if (!radarCtx) return;
+	radarCtx.clearRect(0, 0, 160, 160);
+	if (powerUpEnds[1] <= Date.now()) return;
+	radarCtx.save();
+	radarCtx.strokeStyle = "rgba(254, 143, 133, 0.9)";
+	radarCtx.fillStyle = "#ff9687";
+	for (const contact of radarContacts) {
+		const x = contact.x / mapSize * 160;
+		const y = contact.y / mapSize * 160;
+		radarCtx.beginPath();
+		radarCtx.arc(x, y, 3, 0, Math.PI * 2);
+		radarCtx.fill();
+		if (contact.trail.length) {
+			radarCtx.beginPath();
+			radarCtx.moveTo(contact.trail[0].x / mapSize * 160, contact.trail[0].y / mapSize * 160);
+			for (let k = 1; k < contact.trail.length; k++) {
+				radarCtx.lineTo(contact.trail[k].x / mapSize * 160, contact.trail[k].y / mapSize * 160);
+			}
+			radarCtx.lineTo(x, y);
+			radarCtx.lineWidth = 1;
+			radarCtx.stroke();
+		}
+	}
+	radarCtx.restore();
+}
+
 //draws blocks on ctx
 export function drawBlocks(ctx, blocks, checkViewport) {
 	var t2;
@@ -4320,16 +4547,21 @@ function loop(timeStamp) {
 
 		//draw blocks
 		drawBlocks(ctx, blocks, true);
+		drawSpeedBooster(ctx);
+		drawExtraPowerUps(ctx);
+		updateSpeedBoostHud();
+		updatePowerUpHud();
+		drawRadarMinimap();
 
 		//players
-		var offset = deltaTime * GLOBAL_SPEED;
 		for (var playerI = 0; playerI < players.length; playerI++) {
 			var player = players[playerI];
+			var offset = deltaTime * getClientPlayerSpeed(player);
 
 			//move player
 			if (!player.isDead || !player.deathWasCertain) {
 				if (player.moveRelativeToServerPosNextFrame) {
-					offset = (Date.now() - player.lastServerPosSentTime) * GLOBAL_SPEED;
+					offset = (Date.now() - player.lastServerPosSentTime) * getClientPlayerSpeed(player);
 				}
 				if (player.isMyPlayer) {
 					movePos(player.serverPos, player.serverDir, offset);
@@ -4391,7 +4623,7 @@ function loop(timeStamp) {
 							roundedPos[1] <= twoPos[1][1]
 						) {
 							if (!touchingPrevTrail) {
-								playerShouldBeDead = true;
+								if (player.isMyPlayer && powerUpEnds[2] <= Date.now()) playerShouldBeDead = true;
 							}
 							touchingPrevTrail = true;
 						} else {
@@ -4466,7 +4698,7 @@ function loop(timeStamp) {
 		if (sendDirQueue.length > 0) {
 			var thisDir = sendDirQueue[0];
 			if (
-				Date.now() - thisDir.addTime > 1.2 / GLOBAL_SPEED || // older than '1.2 blocks travel time'
+				Date.now() - thisDir.addTime > 1.2 / getClientPlayerSpeed(myPlayer) || // older than '1.2 blocks travel time'
 				sendDir(thisDir.dir, true) // senddir call was successful
 			) {
 				sendDirQueue.shift(); //remove item

@@ -5,18 +5,21 @@
 export class WebSocketHoster {
 	#onConnectionCb;
 	#overrideRequestHandler;
+	#resolveAccount;
 
 	/**
-	 * @param {(socket: WebSocket, ip: string) => void} onConnection A callback that fires when a new connection
+	 * @param {(socket: WebSocket, ip: string, account: {username: string} | null) => void} onConnection A callback that fires when a new connection
 	 * is opened. The websocket passed as argument is guaranteed to be open.
 	 * @param {Object} options
-	 * @param {(req: Request) => Promise<Response?>} [options.overrideRequestHandler] A callback that allows you to override requests. When the callback
+	 * @param {(req: Request, ip: string) => Promise<Response?>} [options.overrideRequestHandler] A callback that allows you to override requests. When the callback
 	 * returns a value it will be used as response instead of creating a new connection to the websocket.
+	 * @param {(req: Request) => (Promise<{username: string} | null> | null)} [options.resolveAccount] Optional trusted identity lookup.
 	 * For more complex situations you should probably use "std/http/mod.ts" instead of this.
 	 */
-	constructor(onConnection, { overrideRequestHandler } = {}) {
+	constructor(onConnection, { overrideRequestHandler, resolveAccount } = {}) {
 		this.#onConnectionCb = onConnection;
 		this.#overrideRequestHandler = overrideRequestHandler;
+		this.#resolveAccount = resolveAccount;
 	}
 
 	/**
@@ -37,8 +40,16 @@ export class WebSocketHoster {
 	 * @param {Deno.ServeHandlerInfo<Deno.NetAddr>} info
 	 */
 	async handleRequest(request, { remoteAddr }) {
+		const directIp = remoteAddr?.transport == "tcp" ? remoteAddr.hostname : "unknown";
+		// Only accept X-Real-IP when a trusted local reverse proxy supplies it.
+		const trustedProxy = Deno.env.get("GRIDWAR_TRUST_PROXY") == "1" &&
+			(directIp == "127.0.0.1" || directIp == "::1");
+		const forwardedIp = request.headers.get("X-Real-IP");
+		const ip = trustedProxy && forwardedIp && /^[0-9a-fA-F:.]{1,45}$/.test(forwardedIp)
+			? forwardedIp
+			: directIp;
 		if (this.#overrideRequestHandler) {
-			const response = await this.#overrideRequestHandler(request);
+			const response = await this.#overrideRequestHandler(request, ip);
 			if (response) return response;
 		}
 		if (request.method != "GET") {
@@ -54,16 +65,18 @@ export class WebSocketHoster {
 				},
 			});
 		}
-		let ip = "";
-		const realIp = request.headers.get("X-Real-IP");
-		if (realIp) {
-			ip = realIp;
-		} else if (remoteAddr.transport == "tcp") {
-			ip = remoteAddr.hostname;
+		// Do not trust client-provided X-Real-IP for authentication rate limits.
+		let account = null;
+		if (this.#resolveAccount) {
+			try {
+				account = await this.#resolveAccount(request);
+			} catch (error) {
+				console.warn("Could not resolve optional account session", error);
+			}
 		}
 		const { socket, response } = Deno.upgradeWebSocket(request);
-		socket.addEventListener("open", (e) => {
-			this.#onConnectionCb(socket, ip);
+		socket.addEventListener("open", () => {
+			this.#onConnectionCb(socket, ip, account);
 		});
 		return response;
 	}

@@ -33,5 +33,8 @@ jobs:
       - name: Check Types
         run: deno task check
 
+      - name: Run Game and Account Tests
+        run: deno task test
+
       - name: Build
         run: deno task build-gameserver --target linux

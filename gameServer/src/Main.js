@@ -2,6 +2,7 @@ import { ApplicationLoop } from "./ApplicationLoop.js";
 import { Game } from "./gameplay/Game.js";
 import { WebSocketConnection } from "./WebSocketConnection.js";
 import { WebSocketManager } from "./WebSocketManager.js";
+import { AccountService } from "./auth/AccountService.js";
 
 /**
  * @typedef GameServerHooks
@@ -27,6 +28,7 @@ export class Main {
 		hooks,
 	}) {
 		this.hooks = hooks;
+		this.accountService = new AccountService();
 		this.applicationLoop = new ApplicationLoop(this);
 		this.game = new Game(this.applicationLoop, this, {
 			arenaWidth,
@@ -35,7 +37,7 @@ export class Main {
 			pitHeight,
 			gameMode,
 		});
-		this.websocketManager = new WebSocketManager(this, this.game);
+		this.websocketManager = new WebSocketManager(this, this.game, this.accountService);
 		this.game.onPlayerCountChange((playerCount) => {
 			this.websocketManager.notifyControlSocketsPlayerCount(playerCount);
 		});

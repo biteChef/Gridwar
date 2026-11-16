@@ -1,0 +1,117 @@
+/* Small Gridwar additions only. Original Splix layout and menu remain intact. */
+#accountControls {
+	margin: 13px auto 0;
+	width: min(300px, 100%);
+	color: #e0e8df;
+	font: 12px Arial, Helvetica, sans-serif;
+	text-align: center;
+}
+#accountStatus { margin: 0 0 8px; line-height: 1.4; }
+#accountControls button {
+	padding: 6px 10px;
+	margin: 3px;
+	border: 1px solid #83bf8a;
+	border-radius: 5px;
+	background: #276e32;
+	color: white;
+	font: inherit;
+	cursor: pointer;
+}
+#accountControls button:hover { background: #338843; }
+#accountControls button:focus-visible { outline: 2px solid #b5efbc; outline-offset: 2px; }
+#accountControls button[hidden], #speedBoostHud[hidden] { display: none; }
+
+#accountDialog {
+	box-sizing: border-box;
+	width: min(92vw, 360px);
+	max-height: 92vh;
+	padding: 23px;
+	border: 2px solid #44834a;
+	border-radius: 10px;
+	background: #1e5229;
+	color: #fff;
+	font: 14px Arial, Helvetica, sans-serif;
+	box-shadow: 0 18px 80px rgba(0,0,0,.5);
+}
+#accountDialog::backdrop { background: rgba(18,25,17,.7); }
+#accountDialog h2 { font-size: 23px; margin: 0 0 8px; }
+#accountDialog p { font-size: 12px; line-height: 1.5; margin: 8px 0 18px; }
+#accountForm label { display: block; text-align: left; margin: 14px 0 6px; }
+#accountForm input {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	padding: 10px;
+	font-size: 15px;
+	border: 1px solid #a9d9aa;
+	border-radius: 5px;
+	background: #fff;
+	color: #17361e;
+}
+#accountForm #accountError { color: #ffd1d1; min-height: 15px; margin: 9px 0; }
+.accountFormActions { display: flex; gap: 12px; justify-content: flex-end; }
+.accountFormActions button {
+	cursor: pointer;
+	padding: 9px 15px;
+	border: 0;
+	border-radius: 5px;
+	font-weight: bold;
+}
+#accountCancel { background: #35653d; color: white; }
+#accountSubmit { background: #60dd71; color: #17331e; }
+#accountSubmit:disabled { opacity: .65; cursor: wait; }
+#speedBoostHud {
+	position: fixed;
+	left: 50%;
+	top: 20px;
+	z-index: 120;
+	transform: translateX(-50%);
+	border: 1px solid #efbf54;
+	border-radius: 8px;
+	padding: 10px 16px;
+	color: #fff6d0;
+	background: rgba(82,58,15,.92);
+	font: bold 14px Arial, Helvetica, sans-serif;
+	box-shadow: 0 5px 20px rgba(0,0,0,.3);
+	pointer-events: none;
+}
+#speedBoostTime { font-variant-numeric: tabular-nums; margin-left: 6px; }
+@media (max-width: 620px) {
+	#speedBoostHud { top: 10px; padding: 7px 10px; font-size: 11px; }
+	#accountDialog { padding: 17px; }
+}
+
+/* Five additional power-ups: retain Splix's original UI and color treatment. */
+#powerUpHud {
+	position: fixed;
+	z-index: 119;
+	top: 65px;
+	left: 50%;
+	transform: translateX(-50%);
+	max-width: min(92vw, 660px);
+	padding: 7px 11px;
+	border-radius: 7px;
+	border: 1px solid rgba(163, 220, 175, 0.48);
+	background: rgba(25, 70, 34, 0.92);
+	color: #f0fff3;
+	font: 700 12px/1.5 Arial, Helvetica, sans-serif;
+	text-align: center;
+	pointer-events: none;
+}
+#powerUpHud[hidden] { display: none; }
+#powerUpRadarCanvas {
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	z-index: 110;
+	width: 160px;
+	height: 160px;
+	pointer-events: none;
+}
+@media (max-width: 650px) {
+	#powerUpHud {
+		top: 43px;
+		font-size: 10px;
+		padding: 5px 8px;
+	}
+}

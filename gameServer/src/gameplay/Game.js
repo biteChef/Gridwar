@@ -2,6 +2,8 @@
 
 import { lerp, SingleInstancePromise, Vec2 } from "renda";
 import { Arena } from "./Arena.js";
+import { SpeedBoostManager } from "./SpeedBoostManager.js";
+import { PowerUpManager } from "./PowerUpManager.js";
 import { Player } from "./Player.js";
 import { WebSocketConnection } from "../WebSocketConnection.js";
 import {
@@ -27,6 +29,11 @@ export class Game {
 
 	#arena;
 	#gameMode;
+	/** @type {SpeedBoostManager} */
+	boostManager;
+	/** @type {PowerUpManager} */
+	powerUpManager;
+	#lastRadarUpdate = 0;
 	get gameMode() {
 		return this.#gameMode;
 	}
@@ -68,11 +75,15 @@ export class Game {
 		this.#mainInstance = mainInstance;
 		this.#gameMode = gameMode;
 		this.#arena = new Arena(arenaWidth, arenaHeight, pitWidth, pitHeight, gameMode);
+		this.boostManager = new SpeedBoostManager(this);
+		this.powerUpManager = new PowerUpManager(this);
 		this.#arena.onRectFilled((rect, tileValue) => {
 			for (const player of this.getOverlappingViewportPlayersForRect(rect)) {
 				const { colorId, patternId } = this.getTileTypeForMessage(player, tileValue);
 				player.connection.sendFillRect(rect, colorId, patternId);
 			}
+			this.boostManager.onRectFilled(rect);
+			this.powerUpManager.onRectFilled(rect);
 		});
 
 		this.#updateNextMinimapPartInstance = new SingleInstancePromise(() => this.#updateNextMinimapPart());
@@ -93,6 +104,12 @@ export class Game {
 	loop(now, dt) {
 		for (const player of this.#players.values()) {
 			player.loop(now, dt);
+		}
+		this.boostManager.loop(this.boostClock());
+		this.powerUpManager.loop(this.boostClock());
+		if (now - this.#lastRadarUpdate >= 500) {
+			this.#lastRadarUpdate = now;
+			this.#sendRadarUpdates();
 		}
 
 		if (now - this.#lastMinimapUpdateTime > MINIMAP_PART_UPDATE_FREQUENCY) {
@@ -128,6 +145,51 @@ export class Game {
 
 	/** @type {Map<number, Player>} */
 	#players = new Map();
+
+	boostClock() {
+		return performance.now();
+	}
+
+	/** @param {number} id */
+	getPlayerById(id) {
+		return this.#players.get(id) || null;
+	}
+
+	/** Send active non-speed pickups to clients. */
+	/** @param {{typeId: number, x: number, y: number}[]} locations */
+	broadcastPowerUpLocations(locations) {
+		for (const player of this.#players.values()) {
+			player.connection.sendPowerUpLocations(locations);
+		}
+	}
+
+	/** Send radar players and polyline vertices only to radar-equipped clients. */
+	#sendRadarUpdates() {
+		for (const viewer of this.#players.values()) {
+			if (!viewer.hasPowerUp("radar")) continue;
+			const origin = viewer.getPosition();
+			/** @type {{x: number, y: number, trail: {x: number, y: number}[]}[]} */
+			const contacts = [];
+			for (const player of this.#players.values()) {
+				if (player == viewer || player.dead || player.permanentlyDead || player.isSpectator) continue;
+				const pos = player.getPosition();
+				if (Math.abs(origin.x - pos.x) > 55 || Math.abs(origin.y - pos.y) > 55) continue;
+				const trail = player.isGeneratingTrail ? Array.from(player.getTrailVertices()).slice(-8) : [];
+				contacts.push({ x: pos.x, y: pos.y, trail: trail.map((v) => ({ x: v.x, y: v.y })) });
+				if (contacts.length >= 14) break;
+			}
+			viewer.connection.sendRadarContacts(contacts);
+		}
+	}
+
+	/** Send the active 2x2 patch to every player; new joiners get it separately. */
+	/** @param {{x: number, y: number}?} location */
+	broadcastBoostLocation(location) {
+		for (const player of this.#players.values()) {
+			player.connection.sendBoostLocation(location);
+		}
+	}
+
 
 	/**
 	 * @param {WebSocketConnection} connection

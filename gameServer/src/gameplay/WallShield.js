@@ -32,8 +32,8 @@ const MOVE = {
  * @returns {{direction: WallDirection, position: {x: number, y: number}}?}
  */
 export function chooseWallShieldDeflection(previousPosition, incomingDirection, safeTile, preferLeft = true) {
-	const choices = SIDES[incomingDirection];
-	if (!choices) return null;
+	if (!["up", "down", "left", "right"].includes(incomingDirection)) return null;
+	const choices = SIDES[/** @type {WallDirection} */ (incomingDirection)];
 	for (const dir of preferLeft ? choices : [choices[1], choices[0]]) {
 		const vector = MOVE[dir];
 		const position = { x: previousPosition.x + vector.x, y: previousPosition.y + vector.y };

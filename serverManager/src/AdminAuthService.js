@@ -94,7 +94,8 @@ function getCookie(request) {
 
 /** @param {Request} request @param {string} token @param {number} maxAge */
 function sessionCookie(request, token, maxAge) {
-	const secure = Deno.env.get("GRIDWAR_SECURE_COOKIES") === "1" || new URL(request.url).protocol === "https:";
+	const publicOrigin = Deno.env.get("GRIDWAR_ADMIN_PUBLIC_ORIGIN") || new URL(request.url).origin;
+	const secure = Deno.env.get("GRIDWAR_SECURE_COOKIES") === "1" || new URL(publicOrigin).protocol === "https:";
 	return ADMIN_COOKIE + "=" + token + "; Path=/api/admin; HttpOnly; SameSite=Strict; Max-Age=" + maxAge +
 		(secure ? "; Secure" : "");
 }

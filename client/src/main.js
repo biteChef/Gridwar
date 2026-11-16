@@ -3898,24 +3898,32 @@ function updateTerritoryTokenHud() {
 	const status = document.getElementById("territoryTokenStatus");
 	const progress = document.getElementById("territoryTokenProgress");
 	const attempts = document.getElementById("territoryTokenAttempts");
+	const rewardLabel = document.getElementById("territoryTokenRewardLabel");
 	const maxCaptures = 3;
+	// The badge reflects the reward for the current capture (or next capture
+	// while unclaimed), not a fixed reward for every round.
+	const reward = state.captures <= 1 ? 1 : state.captures === 2 ? 0.75 : 0.5;
+	const possibleReward = state.phase == "available" && state.captures > 0
+		? (state.captures === 1 ? 0.75 : 0.5)
+		: reward;
+	rewardLabel.textContent = "+" + possibleReward.toFixed(2);
 	if (state.phase == "available") {
 		status.textContent = "Unclaimed — capture its tile!";
 		progress.style.width = "0%";
 	} else if (state.phase == "held") {
 		const remaining = Math.max(0, state.remainingMs - (Date.now() - state.receivedAt));
 		const duration = state.captures == 1 ? 30_000 : 15_000;
-		status.textContent = "Territory held · " + (remaining / 1000).toFixed(1) + "s";
+		status.textContent = "Hold " + (remaining / 1000).toFixed(1) + "s · +" + reward.toFixed(2);
 		progress.style.width = (100 * (1 - remaining / duration)).toFixed(1) + "%";
 	} else if (state.phase == "won") {
-		status.textContent = "Token secured! +0.75 game tokens";
+		status.textContent = "Token secured! +" + reward.toFixed(2) + " game tokens";
 		progress.style.width = "100%";
 	} else {
 		status.textContent = "Round ended — no winner";
 		progress.style.width = "0%";
 	}
 	attempts.textContent = "Captures: " + state.captures + " / " + maxCaptures +
-		(state.captures >= maxCaptures && state.phase == "held" ? " · Final hold!" : "");
+		(state.captures == 2 && isOnMap ? " · Next capture: instant +0.50" : "");
 	if (!isOnMap) return;
 	marker.style.left = ((state.x + 0.5) / mapSize * 160 + 3) + "px";
 	marker.style.top = ((state.y + 0.5) / mapSize * 160 + 3) + "px";

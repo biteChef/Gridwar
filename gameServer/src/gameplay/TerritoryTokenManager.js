@@ -137,6 +137,13 @@ export class TerritoryTokenManager {
 	#syncOwnership(now) {
 		const token = this.#token;
 		if (!token) return;
+		// Territory updates may arrive between simulation ticks. Check the
+		// participant requirement here too, so an instant third capture cannot
+		// claim a reward in an otherwise empty arena.
+		if (!this.#canPlay()) {
+			this.#finishRound(now, null);
+			return;
+		}
 		const ownerId = this.#validOwnerId(token.x, token.y);
 		if (ownerId === token.ownerId) return;
 

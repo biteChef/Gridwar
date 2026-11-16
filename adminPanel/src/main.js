@@ -216,7 +216,7 @@ async function deleteServer(server) {
 
 async function onSaveServer(event) {
 	event.preventDefault();
-	if (state.busy || state.editingServerId === null) return;
+	if (state.busy) return;
 	const errorBox = byId("serverFormError");
 	const config = {
 		displayName: byId("serverName").value.trim(),
@@ -229,7 +229,11 @@ async function onSaveServer(event) {
 	state.busy = true;
 	byId("saveServerButton").disabled = true;
 	try {
-		await api("servers/" + state.editingServerId, { method: "PUT", body: config });
+		if (state.editingServerId === null) {
+			await api("servers", { method: "POST", body: config });
+		} else {
+			await api("servers/" + state.editingServerId, { method: "PUT", body: config });
+		}
 		byId("serverDialog").close();
 		state.busy = false;
 		await refreshOverview();
@@ -242,21 +246,18 @@ async function onSaveServer(event) {
 	}
 }
 
-async function onAddServer() {
+function onAddServer() {
 	if (state.busy) return;
-	state.busy = true;
-	try {
-		const created = await api("servers", { method: "POST", body: {} });
-		const overview = await api("overview");
-		renderOverview(overview);
-		const server = overview.servers.find((item) => item.id === created.id);
-		if (server) openServerDialog(server);
-		showError("");
-	} catch (error) {
-		showError(error.message);
-	} finally {
-		state.busy = false;
-	}
+	state.editingServerId = null;
+	byId("serverDialogTitle").textContent = "Add game server";
+	byId("serverName").value = "";
+	byId("serverEndpoint").value = "";
+	byId("serverPublic").checked = false;
+	byId("serverOfficial").checked = false;
+	byId("serverRecommended").checked = false;
+	byId("serverMonitor").checked = true;
+	byId("serverFormError").hidden = true;
+	byId("serverDialog").showModal();
 }
 
 async function onLogin(event) {

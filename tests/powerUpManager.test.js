@@ -41,11 +41,11 @@ function harness(width = 40, height = 40) {
 	};
 }
 
-Deno.test("all five special pickups appear and do not overlap each other or speed", () => {
+Deno.test("all six special pickups appear and do not overlap each other or speed", () => {
 	const h = harness();
 	h.manager.loop(20_000);
 	const patches = h.manager.locations;
-	assert.equal(patches.length, 5);
+	assert.equal(patches.length, 6);
 	assert.deepEqual(new Set(patches.map((p) => p.typeId)), new Set(POWER_UP_TYPES.map((p) => p.id)));
 	for (const p of patches) {
 		assert.ok(!(p.x < 6 && p.x + 2 > 4 && p.y < 6 && p.y + 2 > 4));
@@ -111,4 +111,16 @@ Deno.test("no pickup is awarded to a spectator or dead player", () => {
 	h.manager.onPlayerEnteredTile(spectator, shield);
 	h.manager.onPlayerEnteredTile(dead, radar);
 	assert.deepEqual(h.grants, []);
+});
+
+Deno.test("Wall Shield spawns as sixth pickup and can be claimed like other power-ups", () => {
+	const h = harness();
+	const owner = h.addPlayer(10);
+	h.manager.loop(20_000);
+	const wall = h.manager.locations.find((p) => p.typeId === 6);
+	assert.ok(wall, "a Wall Shield patch should appear");
+	h.fill(wall, 10);
+	h.manager.onPlayerEnteredTile(owner, { x: wall.x + 1, y: wall.y });
+	assert.deepEqual(h.grants, [{ id: 10, type: "wall" }]);
+	assert.ok(!h.manager.locations.some((p) => p.typeId === 6));
 });

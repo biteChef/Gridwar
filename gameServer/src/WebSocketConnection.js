@@ -153,6 +153,10 @@ export class WebSocketConnection {
 			PLAYER_IS_SPECTATOR: 24,
 			BOOST_LOCATION: 25,
 			PLAYER_BOOST: 26,
+			POWERUP_LOCATIONS: 27,
+			POWERUP_STATE: 28,
+			RADAR_CONTACTS: 29,
+			SCORE_BONUS: 30,
 		};
 	}
 
@@ -305,6 +309,7 @@ export class WebSocketConnection {
 				this.send(leaderboard);
 			}
 			this.sendBoostLocation(this.#game.boostManager.location);
+			this.sendPowerUpLocations(this.#game.powerUpManager.locations);
 			this.#sendReady();
 			this.#sendLegacyReady();
 		} else if (messageType == WebSocketConnection.ReceiveAction.PING) {
@@ -421,6 +426,67 @@ export class WebSocketConnection {
 		data.setUint16(3, Math.round(multiplier * 1000), false);
 		data.setUint32(5, Math.max(0, Math.floor(remainingMs)), false);
 		this.send(bytes);
+	}
+
+	/**
+	 * Five 2x2 tiles, one per power type. id, x, y for each.
+	 * @param {{typeId: number, x: number, y: number}[]} patches
+	 */
+	sendPowerUpLocations(patches) {
+		const buffer = new ArrayBuffer(2 + patches.length * 5);
+		const view = new DataView(buffer);
+		view.setUint8(0, WebSocketConnection.SendAction.POWERUP_LOCATIONS);
+		view.setUint8(1, patches.length);
+		let i = 2;
+		for (const patch of patches) {
+			view.setUint8(i++, patch.typeId);
+			view.setUint16(i, patch.x, false);
+			i += 2;
+			view.setUint16(i, patch.y, false);
+			i += 2;
+		}
+		this.send(buffer);
+	}
+
+	/** @param {number[]} remainingMs */
+	sendPowerUpState(remainingMs) {
+		const buffer = new ArrayBuffer(11);
+		const view = new DataView(buffer);
+		view.setUint8(0, WebSocketConnection.SendAction.POWERUP_STATE);
+		for (let index = 0; index < 5; index++) view.setUint16(1 + index * 2, remainingMs[index] || 0, false);
+		this.send(buffer);
+	}
+
+	/**
+	 * Radar data is sent only to the radar player and only while active.
+	 * @param {{x: number, y: number, trail: {x: number, y: number}[]}[]} contacts
+	 */
+	sendRadarContacts(contacts) {
+		let size = 2;
+		for (const c of contacts) size += 5 + c.trail.length * 4;
+		const view = new DataView(new ArrayBuffer(size));
+		view.setUint8(0, WebSocketConnection.SendAction.RADAR_CONTACTS);
+		view.setUint8(1, contacts.length);
+		let i = 2;
+		for (const contact of contacts) {
+			view.setUint16(i, contact.x, false); i += 2;
+			view.setUint16(i, contact.y, false); i += 2;
+			view.setUint8(i++, contact.trail.length);
+			for (const vertex of contact.trail) {
+				view.setUint16(i, vertex.x, false); i += 2;
+				view.setUint16(i, vertex.y, false); i += 2;
+			}
+		}
+		this.send(view.buffer);
+	}
+
+	/** @param {number} bonus */
+	sendScoreBonus(bonus) {
+		const buffer = new ArrayBuffer(5);
+		const view = new DataView(buffer);
+		view.setUint8(0, WebSocketConnection.SendAction.SCORE_BONUS);
+		view.setUint32(1, bonus >>> 0, false);
+		this.send(buffer);
 	}
 
 	#sendReady() {

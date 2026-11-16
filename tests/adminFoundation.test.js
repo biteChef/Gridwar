@@ -53,6 +53,8 @@ Deno.test("admin API requires login, logs server changes, and revokes logout ses
 	Deno.env.set("GRIDWAR_ADMIN_USERNAME", username);
 	Deno.env.set("GRIDWAR_ADMIN_PASSWORD_HASH", await makeAdminPasswordHash(password));
 	Deno.env.set("GRIDWAR_ADMIN_KV_PATH", adminDir + "/admin.kv");
+	/** @type {AdminApiService?} */
+	let api = null;
 	try {
 		const servers = [{
 			id: 1,
@@ -92,7 +94,7 @@ Deno.test("admin API requires login, logs server changes, and revokes logout ses
 			deleteGameServer(id) { servers.splice(servers.findIndex((server) => server.id === id), 1); },
 			setGameServerConfig(id, config) { servers.find((server) => server.id === id).config = config; },
 		};
-		const api = new AdminApiService(/** @type {any} */ ({ servermanager }));
+		api = new AdminApiService(/** @type {any} */ ({ servermanager }));
 		const base = "http://localhost:8080/api/admin/";
 		const req = (path, method = "GET", body, cookie = "", origin = "http://localhost:8080") =>
 			new Request(base + path, {
@@ -137,11 +139,11 @@ Deno.test("admin API requires login, logs server changes, and revokes logout ses
 		assert.equal(logout.status, 200);
 		assert.equal((await api.handleRequest(req("overview", "GET", undefined, cookie))).status, 401);
 	} finally {
+		if (api) await api.close();
 		for (const key of settings) {
 			if (previous[key] === undefined) Deno.env.delete(key);
 			else Deno.env.set(key, previous[key]);
 		}
-		// Do not delete a Deno KV database while its connection is still open.
-		// The temporary test directory can be removed after the process exits.
+		await Deno.remove(adminDir, { recursive: true });
 	}
 });

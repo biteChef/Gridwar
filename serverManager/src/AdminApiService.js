@@ -68,6 +68,11 @@ export class AdminApiService {
 		this.#auth = new AdminAuthService();
 	}
 
+	/** Close the credential store for deterministic test teardown. */
+	async close() {
+		await this.#auth.close();
+	}
+
 	/** @returns {ReturnType<import("./ServerManager.js").ServerManager["getAdminServers"]>} */
 	#getServers() {
 		return this.#main.servermanager.getAdminServers();

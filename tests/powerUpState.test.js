@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { PowerUpState, POWER_UP_TYPES } from "../gameServer/src/gameplay/PowerUpState.js";
 
-Deno.test("all five power-ups are defined with stable IDs and durations", () => {
+Deno.test("all six power-ups are defined with stable IDs and durations", () => {
 	assert.deepEqual(POWER_UP_TYPES.map((p) => p.id), [1, 2, 3, 4, 5, 6]);
 	assert.deepEqual(POWER_UP_TYPES.map((p) => p.durationMs), [8_000, 15_000, 5_000, 15_000, 0, 0]);
 });

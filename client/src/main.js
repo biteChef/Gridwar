@@ -1686,7 +1686,7 @@ function onMessage(evt) {
 		const now = Date.now();
 		for (let idx = 0; idx < 5; idx++) {
 			const remaining = bytesToInt(data[1 + idx * 2], data[2 + idx * 2]);
-			powerUpEnds[idx] = remaining ? now + remaining : 0;
+			powerUpEnds[idx] = idx == 4 ? (remaining > 0 ? Number.MAX_SAFE_INTEGER : 0) : (remaining ? now + remaining : 0);
 		}
 		if (!powerUpEnds[1]) radarContacts = [];
 		return;

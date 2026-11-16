@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>Gridwar · Power-Up Icon Preview</title>
+	<style>
+		:root { color-scheme: dark; font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+		* { box-sizing: border-box; }
+		body { margin: 0; min-height: 100vh; color: #eaf4e9; background: radial-gradient(circle at 50% 0%,#3e5e3b 0,#222f28 35%,#19241d 100%); }
+		main { max-width: 1050px; margin: 0 auto; padding: 48px 20px 72px; }
+		.eyebrow { text-transform: uppercase; color: #a4d6a9; letter-spacing: .16em; font-size: 12px; font-weight: 800; }
+		h1 { font-size: clamp(29px,5vw,44px); letter-spacing: -.04em; margin: 9px 0 12px; }
+		p { color: #b1c5b2; line-height: 1.6; margin: 0 0 25px; max-width: 680px; }
+		.grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(235px,1fr)); gap: 16px; }
+		.card { background: #26402d; border: 1px solid #4a6951; border-radius: 16px; padding: 24px; box-shadow: 0 14px 30px #0003; }
+		.previews { display: flex; align-items: center; gap: 24px; margin-bottom: 19px; min-height: 84px; }
+		.large { width: 76px; height: 76px; object-fit: contain; filter: drop-shadow(0 8px 8px #0006); }
+		.map-demo { width: 80px; height: 80px; background: #254d33; border-radius: 9px; border: 2px solid #679c73; display: grid; grid-template-columns: repeat(2,1fr); grid-template-rows: repeat(2,1fr); gap: 2px; padding: 4px; position: relative; }
+		
+		.map-demo i { display:block; background:color-mix(in srgb, var(--color) 34%, #376443); border-radius:3px; }
+		.map-demo img { position:absolute; width:54px; height:54px; top:11px; left:11px; }
+		.label { font-size: 19px; font-weight: 800; }
+		.tag { color: #afd9b1; font-size: 12px; margin-top: 5px; }
+		.note { margin-top: 32px; border:1px solid #44624a; padding:16px 20px; border-radius:12px; background:#203727; }
+		.back { display: inline-block; margin-top: 24px; color: #c8f4c9; text-decoration: underline; text-underline-offset:4px; }
+	</style>
+</head>
+<body>
+<main>
+	<div class="eyebrow">Gridwar / Visual asset review</div>
+	<h1>Power-up icon set</h1>
+	<p>Six approved first-generation power-up images with transparent backgrounds. Each remains readable over a 2×2 collectible patch. Preview only — no changes to the arena or power-up rules.</p>
+	<div class="grid">
+		<article class="card" style="--color:#F6C451">
+			<div class="previews"><img class="large" src="./static/img/powerups/speed.webp" alt="Golden lightning bolt">
+			<div class="map-demo"><i></i><i></i><i></i><i></i><img src="./static/img/powerups/speed.webp" alt=""></div></div>
+			<div class="label">Speed Boost</div><div class="tag">1.5× movement · 10 seconds</div>
+		</article>
+		<article class="card" style="--color:#4BBAF0">
+			<div class="previews"><img class="large" src="./static/img/powerups/shield.webp" alt="Golden shield">
+			<div class="map-demo"><i></i><i></i><i></i><i></i><img src="./static/img/powerups/shield.webp" alt=""></div></div>
+			<div class="label">Shield</div><div class="tag">Blocks one trail hit</div>
+		</article>
+		<article class="card" style="--color:#AB8CF3">
+			<div class="previews"><img class="large" src="./static/img/powerups/radar.webp" alt="Green radar sweep">
+			<div class="map-demo"><i></i><i></i><i></i><i></i><img src="./static/img/powerups/radar.webp" alt=""></div></div>
+			<div class="label">Radar</div><div class="tag">Reveals nearby players</div>
+		</article>
+		<article class="card" style="--color:#BCE9FF">
+			<div class="previews"><img class="large" src="./static/img/powerups/ghost.webp" alt="Friendly white ghost">
+			<div class="map-demo"><i></i><i></i><i></i><i></i><img src="./static/img/powerups/ghost.webp" alt=""></div></div>
+			<div class="label">Ghost Mode</div><div class="tag">Cross your own trail</div>
+		</article>
+		<article class="card" style="--color:#EEBF47">
+			<div class="previews"><img class="large" src="./static/img/powerups/double.webp" alt="Two overlapping golden stars">
+			<div class="map-demo"><i></i><i></i><i></i><i></i><img src="./static/img/powerups/double.webp" alt=""></div></div>
+			<div class="label">Double Score</div><div class="tag">Bonus points for captures</div>
+		</article>
+		<article class="card" style="--color:#6EDF9C">
+			<div class="previews"><img class="large" src="./static/img/powerups/repair.webp" alt="Golden repair wrench">
+			<div class="map-demo"><i></i><i></i><i></i><i></i><img src="./static/img/powerups/repair.webp" alt=""></div></div>
+			<div class="label">Trail Repair</div><div class="tag">One-use trail rescue</div>
+		</article>
+	</div>
+	<div class="note">The Wall Shield feature remains in its separate unfinished branch. This icon update is based on <strong>main</strong> and contains only the six existing, merged power-ups.</div>
+	<a class="back" href="./">Return to Gridwar</a>
+</main>
+</body>
+</html>

@@ -115,3 +115,57 @@
 		padding: 5px 8px;
 	}
 }
+
+/* Six scalable SVG icons (speed + five specials). Preserve original Splix layout. */
+#speedBoostHud {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	white-space: nowrap;
+}
+#speedBoostHud[hidden] { display: none; }
+#speedBoostHud img {
+	width: 21px;
+	height: 21px;
+	flex-shrink: 0;
+	object-fit: contain;
+	filter: drop-shadow(0 1px 2px rgba(0,0,0,.25));
+}
+#powerUpHud {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	align-items: center;
+	gap: 6px;
+}
+#powerUpHud[hidden] { display: none; }
+.powerup-hud-item {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 7px 3px 4px;
+	border-radius: 6px;
+	background: rgba(10, 33, 17, .42);
+	white-space: nowrap;
+}
+.powerup-hud-item[hidden] { display: none; }
+.powerup-hud-item img {
+	display: block;
+	width: 20px;
+	height: 20px;
+	flex: none;
+	object-fit: contain;
+	filter: drop-shadow(0 1px 1px rgba(0,0,0,.25));
+}
+.powerup-hud-label { color: #f3fff5; }
+.powerup-hud-time {
+	color: #ccedcd;
+	font-variant-numeric: tabular-nums;
+}
+@media (max-width: 650px) {
+	#speedBoostHud img { width: 17px; height: 17px; }
+	#powerUpHud { gap: 4px; }
+	.powerup-hud-item { padding: 2px 5px 2px 3px; gap: 3px; }
+	.powerup-hud-item img { width: 16px; height: 16px; }
+}

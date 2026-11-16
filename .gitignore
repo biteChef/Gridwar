@@ -6,3 +6,7 @@ serverManager/out
 deps
 serverManager/persistentStorage.json
 adminPanel/out/
+
+# Local admin authentication/session database (never commit)
+gridwar-admin.kv*
+serverManager/gridwar-admin.kv*

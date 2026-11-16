@@ -229,4 +229,13 @@ export class AdminAuthService {
 		for await (const entry of entries) items.push(entry.value);
 		return items;
 	}
+
+	/** Close the dedicated KV handle during tests or graceful service shutdown. */
+	async close() {
+		if (this.#dbPromise) {
+			const db = await this.#dbPromise;
+			db.close();
+			this.#dbPromise = null;
+		}
+	}
 }

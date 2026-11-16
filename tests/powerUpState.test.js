@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { PowerUpState, POWER_UP_TYPES } from "../gameServer/src/gameplay/PowerUpState.js";
 
 Deno.test("all five power-ups are defined with stable IDs and durations", () => {
-	assert.deepEqual(POWER_UP_TYPES.map((p) => p.id), [1, 2, 3, 4, 5]);
-	assert.deepEqual(POWER_UP_TYPES.map((p) => p.durationMs), [8_000, 15_000, 5_000, 15_000, 0]);
+	assert.deepEqual(POWER_UP_TYPES.map((p) => p.id), [1, 2, 3, 4, 5, 6]);
+	assert.deepEqual(POWER_UP_TYPES.map((p) => p.durationMs), [8_000, 15_000, 5_000, 15_000, 0, 0]);
 });
 
 Deno.test("shield absorbs one strike and expires on time", () => {
@@ -52,6 +52,23 @@ Deno.test("clearing powers on death removes all timers and repair charges", () =
 	const state = new PowerUpState();
 	for (const { type } of POWER_UP_TYPES) state.grant(type, 0);
 	state.clear();
-	assert.deepEqual(state.snapshot(1), [0, 0, 0, 0, 0]);
+	assert.deepEqual(state.snapshot(1), [0, 0, 0, 0, 0, 0]);
 	assert.equal(state.consumeTrailDefense(1), null);
+});
+
+Deno.test("wall shield is separate from trail shield, one use and nonstacking", () => {
+	const state = new PowerUpState();
+	assert.equal(state.consumeWallShield(), false);
+	state.grant("wall", 0);
+	assert.equal(state.isActive("wall", 60_000), true);
+	assert.equal(state.remainingMs("wall", 60_000), 1);
+	state.grant("wall", 0);
+	assert.equal(state.consumeWallShield(), true);
+	assert.equal(state.consumeWallShield(), false);
+	state.grant("shield", 0);
+	assert.equal(state.consumeWallShield(), false);
+	assert.equal(state.consumeTrailDefense(100), "shield");
+	state.grant("wall", 0);
+	state.clear();
+	assert.equal(state.consumeWallShield(), false);
 });

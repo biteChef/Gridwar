@@ -15,6 +15,7 @@ import { checkTrailSegment } from "../util/util.js";
 import { PlayerEventHistory } from "./PlayerEventHistory.js";
 import { SPEED_BOOST } from "./SpeedBoostManager.js";
 import { PowerUpState } from "./PowerUpState.js";
+import { chooseWallShieldDeflection } from "./WallShield.js";
 
 /**
  * When sent inside messages, these translate to an integer:
@@ -398,12 +399,19 @@ export class Player {
 			this.#movementQueue.shift();
 			this.#currentPosition.set(desiredPosition);
 			this.#lastCertainClientPosition.set(desiredPosition);
-			if (this.isGeneratingTrail) {
-				this.#addTrailVertex(desiredPosition);
-			}
 			this.#currentDirection = firstItem.direction;
 			if (firstItem.direction != "paused") {
 				this.#lastUnpausedDirection = firstItem.direction;
+			}
+			// The server may receive a queued turn at the boundary before the
+			// next tick. Deflect before committing an out-of-bounds trail vertex.
+			if (this.#tryWallShieldDeflection(previousPosition)) {
+				if (!this.isSpectator) this.#updateCurrentTile(previousPosition);
+				this.#currentPositionChanged();
+				continue;
+			}
+			if (this.isGeneratingTrail) {
+				this.#addTrailVertex(desiredPosition);
 			}
 			this.#eventHistory.undoRecentEvents(previousPosition, desiredPosition);
 			this.game.broadcastPlayerState(this);
@@ -781,6 +789,10 @@ export class Player {
 				}
 
 				try {
+					// Rewind from the boundary and move one safe tile sideways.
+					// A successful deflection is still checked against normal
+					// enemy trails and arena rules on that new position.
+					this.#tryWallShieldDeflection(previousPosition);
 					if (!this.isSpectator) {
 						this.#updateCurrentTile(previousPosition);
 					}
@@ -807,6 +819,54 @@ export class Player {
 				this.connection.close();
 			}
 		}
+	}
+
+	/** @param {{x: number, y: number}} pos */
+	#isWallPosition(pos) {
+		return pos.x <= 0 || pos.y <= 0 ||
+			pos.x >= this.game.arena.width - 1 ||
+			pos.y >= this.game.arena.height - 1 ||
+			(this.game.gameMode == "arena" && this.game.arena.getTileValue(pos) === -1);
+	}
+
+	/**
+	 * Wall Shield is one use. Its sideways push happens only when a safe,
+	 * adjacent route exists; otherwise the original wall collision applies.
+	 * @param {Vec2} previousPosition
+	 */
+	#tryWallShieldDeflection(previousPosition) {
+		if (!this.#isWallPosition(this.#currentPosition) || !this.hasPowerUp("wall") ||
+			this.dead || this.isSpectator || this.#currentDirection == "paused") return false;
+		if (Math.abs(previousPosition.x - this.#currentPosition.x) +
+			Math.abs(previousPosition.y - this.#currentPosition.y) != 1) return false;
+		const chooseSafe = (position) => {
+			if (this.#isWallPosition(position)) return false;
+			for (const other of this.game.getOverlappingTrailBoundsPlayersForPos(position)) {
+				if (other.dead || other.isSpectator) continue;
+				if (other == this && this.hasPowerUp("ghost")) continue;
+				// Do not use the shield to skip through a dangerous existing trail.
+				if (other.pointIsInTrail(position, { includeLastSegments: other != this })) return false;
+			}
+			return true;
+		};
+		const redirect = chooseWallShieldDeflection(
+			previousPosition,
+			this.#currentDirection,
+			chooseSafe,
+			Math.random() < 0.5,
+		);
+		if (!redirect || !this.powerUps.consumeWallShield()) return false;
+		this.#currentPosition.set(redirect.position.x, redirect.position.y);
+		this.#currentDirection = redirect.direction;
+		this.#lastUnpausedDirection = redirect.direction;
+		this.#lastCertainClientPosition.set(this.#currentPosition);
+		// Client turns queued before the bounce refer to the old heading.
+		this.#movementQueue.length = 0;
+		this.#nextTileProgress = 0;
+		this.#sendPowerUpState();
+		this.game.broadcastPlayerState(this);
+		this.sendPlayerStateToPlayer(this);
+		return true;
 	}
 
 	#currentPositionChanged() {
@@ -852,12 +912,7 @@ export class Player {
 		}
 
 		// Check if we are touching the edge of the map or the pit border.
-		if (
-			this.#currentPosition.x <= 0 || this.#currentPosition.y <= 0 ||
-			this.#currentPosition.x >= this.game.arena.width - 1 ||
-			this.#currentPosition.y >= this.game.arena.height - 1 ||
-			(this.game.gameMode == "arena" && this.game.arena.getTileValue(this.#currentPosition) === -1)
-		) {
+		if (this.#isWallPosition(this.#currentPosition)) {
 			this.#killPlayer(this, "arena-bounds");
 		}
 

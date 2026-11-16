@@ -454,7 +454,11 @@ export class WebSocketConnection {
 		const buffer = new ArrayBuffer(11);
 		const view = new DataView(buffer);
 		view.setUint8(0, WebSocketConnection.SendAction.POWERUP_STATE);
-		for (let index = 0; index < 5; index++) view.setUint16(1 + index * 2, remainingMs[index] || 0, false);
+		for (let index = 0; index < 5; index++) {
+			// Repair is a charge, not a duration. 65535 denotes a ready charge.
+			const value = index == 4 && remainingMs[index] > 0 ? 65535 : remainingMs[index] || 0;
+			view.setUint16(1 + index * 2, Math.min(65535, Math.max(0, value)), false);
+		}
 		this.send(buffer);
 	}
 

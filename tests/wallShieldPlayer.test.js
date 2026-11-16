@@ -9,7 +9,7 @@ import { Player } from "../gameServer/src/gameplay/Player.js";
  * exercises Player.loop(), trail vertices, direction changes and death logic.
  */
 function createWallApproach(hasWallShield) {
-	const events = { closed: 0, deaths: 0, trailUpdates: 0, serverPositions: 0 };
+	const events = { closed: 0, deaths: 0, gameOvers: 0, trailUpdates: 0, serverPositions: 0 };
 	const noOp = () => {};
 	const connection = {
 		protocolVersion: 1,
@@ -22,6 +22,7 @@ function createWallApproach(hasWallShield) {
 		sendMyScore: noOp,
 		sendMyRank: noOp,
 		sendPowerUpState: noOp,
+		sendGameOver() { events.gameOvers++; },
 		close() { events.closed++; },
 	};
 	const game = {
@@ -30,6 +31,7 @@ function createWallApproach(hasWallShield) {
 			width: 20,
 			height: 20,
 			fillPlayerSpawn() { return 9; },
+			clearAllPlayerTiles: noOp,
 			getTileValue({ x, y }) {
 				// A wall tile must never be read by #updateCurrentTile.
 				if (x <= 0 || y <= 0 || x >= 19 || y >= 19) {
@@ -123,5 +125,18 @@ Deno.test("Wall Shield also redirects when a lagged server tick crosses multiple
 	assert.ok(player.getPosition().x >= 1 && player.getPosition().x <= 18);
 	assert.ok(player.getPosition().y >= 1 && player.getPosition().y <= 18);
 	assert.ok(["left", "right"].includes(player.currentDirection));
+	assert.equal(events.closed, 0);
+});
+
+Deno.test("a wall hit without shield yields a normal GAME OVER packet before disconnect", async () => {
+	const { player, events } = createWallApproach(false);
+	advanceTile(player);
+	advanceTile(player);
+	advanceTile(player);
+	assert.equal(player.dead, true);
+	// Original Splix allows time for lag compensation before ending the game.
+	await new Promise((resolve) => setTimeout(resolve, 650));
+	player.loop(performance.now(), 0);
+	assert.equal(events.gameOvers, 1);
 	assert.equal(events.closed, 0);
 });

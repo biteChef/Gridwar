@@ -47,6 +47,7 @@ export class ServerManager {
 		this.#servers.set(id, server);
 		this.#mainInstance.adminWebsocketManager.sendAllServerConfigs();
 		this.#saveServersData();
+		return id;
 	}
 
 	/**
@@ -80,6 +81,16 @@ export class ServerManager {
 	/**
 	 * Returns data that can be used by the admin panel for displaying configured servers.
 	 */
+	getAdminServers() {
+		return Array.from(this.#servers.values(), (server) => ({
+			id: server.id,
+			config: server.getConfig(),
+			playerCount: server.monitorStatus === "online" ? server.playerCount : null,
+			status: server.monitorStatus,
+			joinable: server.available,
+		}));
+	}
+
 	getServerConfigs() {
 		/** @type {GameServerConfigs} */
 		const configs = [];

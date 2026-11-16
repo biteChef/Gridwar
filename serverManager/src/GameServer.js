@@ -95,6 +95,15 @@ export class GameServer {
 		return this.#id;
 	}
 
+	get playerCount() {
+		return this.#playerCount;
+	}
+
+	get monitorStatus() {
+		if (!this.#needsControlSocket) return "unmonitored";
+		return this.#persistentWebSocket?.connected ? "online" : "offline";
+	}
+
 	/**
 	 * True when the server should be joinable by the public.
 	 * False when either the public checkbox isn't set or the servermanager itself doesn't have a connection to this gameserver.

@@ -116,7 +116,14 @@ Deno.test("admin API requires login, logs server changes, and revokes logout ses
 		assert.equal(overview.trackedPlayers, 18);
 		assert.equal(overview.unmonitoredServers, 1);
 		assert.equal(overview.registeredServers, 2);
-		assert.equal((await api.handleRequest(req("servers", "POST", {}, cookie))).status, 201);
+		assert.equal((await api.handleRequest(req("servers", "POST", {
+			displayName: "New Arena",
+			endpoint: "wss://example.test/new",
+			public: false,
+			official: false,
+			recommended: false,
+			needsControlSocket: true,
+		}, cookie))).status, 201);
 		assert.equal((await api.handleRequest(req("servers/1", "PUT", {
 			...servers[0].config, displayName: "New name",
 		}, cookie))).status, 200);

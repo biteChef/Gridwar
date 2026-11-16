@@ -117,7 +117,7 @@ if (!Deno.args.includes("--no-init")) {
 								<li><a href="/client/">/client/</a> - The splix client.</li>
 								<li><a href="/client/flags.html">/client/flags.html</a> - Client flags for debugging etc.</li>
 								<li>/gameserver - The gameserver, <a href="/client/#ip=ws://localhost:8080/gameserver">click here to connect to it using a client</a></li>
-								<li><a href="/adminpanel/">/adminpanel/</a> - Admin panel for server management.</li>
+								<li><a href="/adminpanel/">/adminpanel/</a> - Admin dashboard (requires admin credentials).</li>
 								<li>/servermanager/ - Hosts several endpoints for servermanagement.</li>
 								<li><a href="/servermanager/gameservers">/servermanager/gameservers</a> - Endpoint which can be used by clients to list available servers.</li>
 							</ul>
@@ -131,12 +131,12 @@ if (!Deno.args.includes("--no-init")) {
 					},
 				},
 			);
+		} else if (url.pathname.startsWith("/api/admin/")) {
+			return serverManager.handleRequest(request, info);
 		} else if (url.pathname.startsWith("/api/account/")) {
 			return gameServer.accountService.handleRequest(request, info.remoteAddr?.hostname || "unknown");
 		} else if (url.pathname == "/gameserver") {
 			return gameServer.websocketManager.handleRequest(request, info);
-		} else if (url.pathname.startsWith("/servermanagerToken")) {
-			return new Response(INSECURE_LOCALHOST_SERVERMANAGER_TOKEN);
 		} else if (url.pathname.startsWith("/servermanager")) {
 			return serverManager.handleRequest(request, info);
 		}
@@ -145,7 +145,7 @@ if (!Deno.args.includes("--no-init")) {
 			if (url.pathname.startsWith(`/${dir}/`)) {
 				return await serveDir(request, {
 					quiet: true,
-					showDirListing: true,
+					showDirListing: false,
 				});
 			}
 		}

@@ -310,6 +310,7 @@ export class WebSocketConnection {
 			}
 			this.sendBoostLocation(this.#game.boostManager.location);
 			this.sendPowerUpLocations(this.#game.powerUpManager.locations);
+			this.sendPowerUpState(this.#player.powerUps.snapshot(performance.now()));
 			this.#sendReady();
 			this.#sendLegacyReady();
 		} else if (messageType == WebSocketConnection.ReceiveAction.PING) {

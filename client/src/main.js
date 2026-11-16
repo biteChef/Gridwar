@@ -136,6 +136,12 @@ var lastClientsideMoves = [],
 	skipTrailRequestResponse = false;
 var mapSize = 2000, closedBecauseOfDeath = false, minimapCtx, beginScreenVisible = true, wsOnOpenTime;
 var speedBoosterPos = null;
+var powerUpPatches = [];
+var powerUpEnds = [0, 0, 0, 0, 0];
+var powerUpBonus = 0;
+var radarContacts = [];
+var radarCanvas = null;
+var radarCtx = null;
 var minimapCanvas;
 var canvasQuality = 1,
 	currentDtCap = 0,
@@ -248,6 +254,10 @@ var receiveAction = {
 	PLAYER_IS_SPECTATOR: 24,
 	BOOST_LOCATION: 25,
 	PLAYER_BOOST: 26,
+	POWERUP_LOCATIONS: 27,
+	POWERUP_STATE: 28,
+	RADAR_CONTACTS: 29,
+	SCORE_BONUS: 30,
 };
 
 var sendAction = {
@@ -1341,6 +1351,12 @@ window.onload = function () {
 	ctx = mainCanvas.getContext("2d");
 	minimapCanvas = document.getElementById("minimapCanvas");
 	minimapCtx = minimapCanvas.getContext("2d");
+	radarCanvas = document.createElement("canvas");
+	radarCanvas.id = "powerUpRadarCanvas";
+	radarCanvas.width = 160;
+	radarCanvas.height = 160;
+	radarCtx = radarCanvas.getContext("2d");
+	document.getElementById("miniMap").appendChild(radarCanvas);
 	linesCanvas = document.createElement("canvas");
 	linesCtx = linesCanvas.getContext("2d");
 	tempCanvas = document.createElement("canvas");
@@ -1652,6 +1668,60 @@ function onMessage(evt) {
 	// console.log(evt);
 	var x, y, type, id, player, w, h, block, i, j, nameBytes;
 	var data = new Uint8Array(evt.data);
+	if (data[0] == receiveAction.POWERUP_LOCATIONS) {
+		if (data.length < 2 || data.length != 2 + data[1] * 5) return;
+		powerUpPatches = [];
+		for (let idx = 0; idx < data[1]; idx++) {
+			const at = 2 + idx * 5;
+			powerUpPatches.push({
+				typeId: data[at],
+				x: bytesToInt(data[at + 1], data[at + 2]),
+				y: bytesToInt(data[at + 3], data[at + 4]),
+			});
+		}
+		return;
+	}
+	if (data[0] == receiveAction.POWERUP_STATE) {
+		if (data.length !== 11) return;
+		const now = Date.now();
+		for (let idx = 0; idx < 5; idx++) {
+			const remaining = bytesToInt(data[1 + idx * 2], data[2 + idx * 2]);
+			powerUpEnds[idx] = remaining ? now + remaining : 0;
+		}
+		if (!powerUpEnds[1]) radarContacts = [];
+		return;
+	}
+	if (data[0] == receiveAction.SCORE_BONUS) {
+		if (data.length !== 5) return;
+		powerUpBonus = bytesToInt(data[1], data[2], data[3], data[4]);
+		realScoreStatTarget = scoreStatTarget + (myKillsElem ? Number(myKillsElem.textContent) || 0 : 0) * 500 + powerUpBonus;
+		return;
+	}
+	if (data[0] == receiveAction.RADAR_CONTACTS) {
+		if (data.length < 2) return;
+		const decoded = [];
+		let cursor = 2;
+		for (let contactIndex = 0; contactIndex < data[1]; contactIndex++) {
+			if (cursor + 5 > data.length) return;
+			const x = bytesToInt(data[cursor], data[cursor + 1]);
+			const y = bytesToInt(data[cursor + 2], data[cursor + 3]);
+			const count = data[cursor + 4];
+			cursor += 5;
+			if (cursor + 4 * count > data.length) return;
+			const trail = [];
+			for (let t = 0; t < count; t++) {
+				trail.push({
+					x: bytesToInt(data[cursor], data[cursor + 1]),
+					y: bytesToInt(data[cursor + 2], data[cursor + 3]),
+				});
+				cursor += 4;
+			}
+			decoded.push({ x, y, trail });
+		}
+		if (cursor !== data.length) return;
+		radarContacts = decoded;
+		return;
+	}
 	if (data[0] == receiveAction.BOOST_LOCATION) {
 		if (data.length < 2) return;
 		speedBoosterPos = data[1] == 1 && data.length >= 6
@@ -1928,7 +1998,7 @@ function onMessage(evt) {
 			kills = bytesToInt(data[5], data[6]);
 		}
 		scoreStatTarget = score;
-		realScoreStatTarget = score + kills * 500;
+		realScoreStatTarget = score + kills * 500 + powerUpBonus;
 		myKillsElem.innerHTML = kills;
 	}
 	if (data[0] == receiveAction.MY_RANK) {
@@ -2242,6 +2312,11 @@ function resetAll() {
 	blocks = [];
 	players = [];
 	speedBoosterPos = null;
+	powerUpPatches = [];
+	powerUpEnds = [0, 0, 0, 0, 0];
+	powerUpBonus = 0;
+	radarContacts = [];
+	if (radarCtx) radarCtx.clearRect(0, 0, 160, 160);
 	const boostHud = document.getElementById("speedBoostHud");
 	if (boostHud) boostHud.hidden = true;
 	camPosSet = false;
@@ -3694,6 +3769,83 @@ function updateSpeedBoostHud() {
 	}
 }
 
+const POWER_UP_VISUALS = [
+	{ label: "S", name: "Shield", color: "#4bbaf0" },
+	{ label: "R", name: "Radar", color: "#ab8cf3" },
+	{ label: "G", name: "Ghost", color: "#d4efff" },
+	{ label: "2×", name: "2× Score", color: "#eebf47" },
+	{ label: "+", name: "Repair", color: "#6edf9c" },
+];
+
+function drawExtraPowerUps(ctx) {
+	const now = performance.now();
+	for (const patch of powerUpPatches) {
+		if (Math.abs(patch.x - camPos[0]) > VIEWPORT_RADIUS + 3 ||
+			Math.abs(patch.y - camPos[1]) > VIEWPORT_RADIUS + 3) continue;
+		const visual = POWER_UP_VISUALS[patch.typeId - 1];
+		if (!visual) continue;
+		const px = patch.x * 10, py = patch.y * 10;
+		const pulse = 0.24 + 0.09 * Math.sin(now * 0.005 + patch.typeId);
+		ctx.save();
+		ctx.fillStyle = visual.color;
+		ctx.globalAlpha = pulse;
+		ctx.fillRect(px + 1, py + 1, 18, 18);
+		ctx.globalAlpha = 0.95;
+		ctx.strokeStyle = visual.color;
+		ctx.lineWidth = 1;
+		ctx.strokeRect(px + 1, py + 1, 18, 18);
+		ctx.fillStyle = visual.color;
+		ctx.font = "bold 12px sans-serif";
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.fillText(visual.label, px + 10, py + 10);
+		ctx.restore();
+	}
+}
+
+function updatePowerUpHud() {
+	const hud = document.getElementById("powerUpHud");
+	if (!hud) return;
+	const now = Date.now();
+	const display = [];
+	for (let idx = 0; idx < POWER_UP_VISUALS.length; idx++) {
+		const remaining = Math.max(0, powerUpEnds[idx] - now);
+		if (!remaining) continue;
+		const name = POWER_UP_VISUALS[idx].name;
+		const label = idx == 4 ? "ready" : (remaining / 1000).toFixed(1) + "s";
+		display.push(name + ": " + label);
+	}
+	hud.hidden = display.length == 0;
+	hud.textContent = display.join(" · ");
+}
+
+function drawRadarMinimap() {
+	if (!radarCtx) return;
+	radarCtx.clearRect(0, 0, 160, 160);
+	if (powerUpEnds[1] <= Date.now()) return;
+	radarCtx.save();
+	radarCtx.strokeStyle = "rgba(254, 143, 133, 0.9)";
+	radarCtx.fillStyle = "#ff9687";
+	for (const contact of radarContacts) {
+		const x = contact.x / mapSize * 160;
+		const y = contact.y / mapSize * 160;
+		radarCtx.beginPath();
+		radarCtx.arc(x, y, 3, 0, Math.PI * 2);
+		radarCtx.fill();
+		if (contact.trail.length) {
+			radarCtx.beginPath();
+			radarCtx.moveTo(contact.trail[0].x / mapSize * 160, contact.trail[0].y / mapSize * 160);
+			for (let k = 1; k < contact.trail.length; k++) {
+				radarCtx.lineTo(contact.trail[k].x / mapSize * 160, contact.trail[k].y / mapSize * 160);
+			}
+			radarCtx.lineTo(x, y);
+			radarCtx.lineWidth = 1;
+			radarCtx.stroke();
+		}
+	}
+	radarCtx.restore();
+}
+
 //draws blocks on ctx
 export function drawBlocks(ctx, blocks, checkViewport) {
 	var t2;
@@ -4396,7 +4548,10 @@ function loop(timeStamp) {
 		//draw blocks
 		drawBlocks(ctx, blocks, true);
 		drawSpeedBooster(ctx);
+		drawExtraPowerUps(ctx);
 		updateSpeedBoostHud();
+		updatePowerUpHud();
+		drawRadarMinimap();
 
 		//players
 		for (var playerI = 0; playerI < players.length; playerI++) {
@@ -4468,7 +4623,7 @@ function loop(timeStamp) {
 							roundedPos[1] <= twoPos[1][1]
 						) {
 							if (!touchingPrevTrail) {
-								playerShouldBeDead = true;
+								if (!(player.isMyPlayer && powerUpEnds[2] > Date.now())) playerShouldBeDead = true;
 							}
 							touchingPrevTrail = true;
 						} else {

@@ -2,8 +2,9 @@
  * One shared territory-token objective per game arena.
  *
  * Rules: claim the tile using normal Splix territory mechanics, hold the
- * first capture for 30s or a takeover for 15s, and stop after three total
- * successful captures. Only a completed hold awards 0.75 *virtual* game token.
+ * first capture for 30s to earn 1.00 virtual token, or the second capture
+ * for 15s to earn 0.75. The third capture wins immediately for 0.50.
+ * No more than three successful captures are allowed per round.
  *
  * Financial/persistent token crediting is deliberately not implemented here.
  * The server is authoritative; clients only display the state broadcast.
@@ -12,7 +13,9 @@ export const TERRITORY_TOKEN_RULES = Object.freeze({
 	firstHoldMs: 30_000,
 	stealHoldMs: 15_000,
 	maxCaptures: 3,
-	rewardMilliTokens: 750,
+	firstRewardMilliTokens: 1_000,
+	stealRewardMilliTokens: 750,
+	finalRewardMilliTokens: 500,
 	respawnMs: 45_000,
 	minActivePlayers: 2,
 	margin: 3,
@@ -147,6 +150,12 @@ export class TerritoryTokenManager {
 		token.ownerId = ownerId;
 		if (ownerId) {
 			token.captures++;
+			// The third successful capture ends the round immediately; no hold
+			// timer, or opportunity for a fourth capture, is created.
+			if (token.captures === TERRITORY_TOKEN_RULES.maxCaptures) {
+				this.#finishRound(now, this.#game.getPlayerById(ownerId));
+				return;
+			}
 			const duration = token.captures === 1
 				? TERRITORY_TOKEN_RULES.firstHoldMs
 				: TERRITORY_TOKEN_RULES.stealHoldMs;
@@ -174,7 +183,12 @@ export class TerritoryTokenManager {
 		// Clear the objective before the award, so duplicate callbacks cannot
 		// credit the same winning round twice.
 		if (winner) {
-			winner.grantTerritoryTokenReward(TERRITORY_TOKEN_RULES.rewardMilliTokens);
+			const rewardMilliTokens = token.captures === 1
+				? TERRITORY_TOKEN_RULES.firstRewardMilliTokens
+				: token.captures === 2
+				? TERRITORY_TOKEN_RULES.stealRewardMilliTokens
+				: TERRITORY_TOKEN_RULES.finalRewardMilliTokens;
+			winner.grantTerritoryTokenReward(rewardMilliTokens);
 		}
 		this.#broadcast();
 	}

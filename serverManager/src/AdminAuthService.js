@@ -53,7 +53,7 @@ export async function makeAdminPasswordHash(password) {
 	return "pbkdf2$" + HASH_ITERATIONS + "$" + toBase64Url(salt) + "$" + toBase64Url(bytes);
 }
 
-/** @param {string} encoded */
+/** @param {string | null | undefined} encoded */
 export function parseAdminPasswordHash(encoded) {
 	if (typeof encoded !== "string") return null;
 	const match = /^pbkdf2\$(\d+)\$([A-Za-z0-9_-]+)\$([A-Za-z0-9_-]+)$/.exec(encoded);
@@ -148,6 +148,7 @@ export class AdminAuthService {
 	/**
 	 * @param {Request} request
 	 * @param {string} ip
+	 * @returns {Promise<{status: number, data?: Record<string, unknown>, error?: string, headers?: Record<string, string>}>}
 	 */
 	async login(request, ip) {
 		if (!this.configured) return { error: "Admin account not configured", status: 503 };
@@ -179,6 +180,7 @@ export class AdminAuthService {
 		const db = await this.#db();
 		await db.set(["gridwar", "admin", "session", key], {
 			username: user, role: "owner",
+			passwordHash: Deno.env.get("GRIDWAR_ADMIN_PASSWORD_HASH"),
 		}, { expireIn: SESSION_MS });
 		await this.recordAudit(user, "admin.login", "Session started");
 		return {
@@ -194,8 +196,9 @@ export class AdminAuthService {
 		if (!token) return null;
 		const db = await this.#db();
 		const stored = await db.get(["gridwar", "admin", "session", await hashSession(token)]);
-		const user = /** @type {{username: string, role: string}?} */ (stored.value);
-		if (!user || user.role !== "owner" || user.username !== Deno.env.get("GRIDWAR_ADMIN_USERNAME")) return null;
+		const user = /** @type {{username: string, role: string, passwordHash?: string}?} */ (stored.value);
+		if (!user || user.role !== "owner" || user.username !== Deno.env.get("GRIDWAR_ADMIN_USERNAME") ||
+			user.passwordHash !== Deno.env.get("GRIDWAR_ADMIN_PASSWORD_HASH")) return null;
 		return { username: user.username, role: "owner" };
 	}
 

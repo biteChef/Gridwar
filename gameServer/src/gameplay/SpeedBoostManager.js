@@ -158,6 +158,8 @@ export class SpeedBoostManager {
 
 	/** @param {number} x @param {number} y */
 	#overlapsPowerUps(x, y) {
+		const token = this.#game.territoryTokenManager?.location;
+		if (token && token.x >= x && token.x < x + 2 && token.y >= y && token.y < y + 2) return true;
 		for (const patch of this.#game.powerUpManager?.locations || []) {
 			if (x < patch.x + 2 && x + 2 > patch.x &&
 				y < patch.y + 2 && y + 2 > patch.y) return true;

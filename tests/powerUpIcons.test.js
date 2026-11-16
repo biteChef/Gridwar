@@ -7,48 +7,47 @@ import {
 	getPowerUpIconPath,
 } from "../client/src/powerUpIcons.js";
 
-Deno.test("SVG artwork maps exactly to the five stable server power-up IDs", () => {
+Deno.test("first-generation power-up images match existing game IDs", () => {
 	assert.deepEqual(POWER_UP_TYPES.map((definition) => definition.type), MAP_POWER_UP_TYPES);
 	assert.deepEqual(Object.keys(POWER_UP_ART), ["speed", ...MAP_POWER_UP_TYPES]);
 	for (const [name, artwork] of Object.entries(POWER_UP_ART)) {
-		assert.ok(artwork.name.length > 0, name);
-		assert.match(artwork.color, /^#[0-9A-Fa-f]{6}$/, name);
-		assert.equal(getPowerUpIconPath(name), "./static/img/powerups/" + name + ".svg");
+		assert.ok(artwork.name.length > 0);
+		assert.match(artwork.color, /^#[0-9A-Fa-f]{6}$/);
+		assert.equal(getPowerUpIconPath(name), "./static/img/powerups/" + name + ".webp");
 	}
 	assert.equal(getPowerUpIconPath("unknown"), "");
 });
 
-Deno.test("all six SVG assets exist and are scalable and transparent", async () => {
+Deno.test("all six approved icons are small transparent WebP images", async () => {
+	const encoder = new TextDecoder("ascii");
 	for (const name of Object.keys(POWER_UP_ART)) {
-		const file = "client/static/img/powerups/" + name + ".svg";
-		const svg = await Deno.readTextFile(file);
-		assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/, file);
-		assert.match(svg, /viewBox="0 0 64 64"/, file);
-		assert.match(svg, /<title>[^<]+<\/title>/, file);
-		assert.match(svg, /<\/svg>\s*$/, file);
-		assert.ok(!svg.includes("<image"), file + " should be fully vector, not embedded bitmap");
+		const path = "client/static/img/powerups/" + name + ".webp";
+		const bytes = await Deno.readFile(path);
+		assert.ok(bytes.length > 300 && bytes.length < 15_000, path);
+		assert.equal(encoder.decode(bytes.subarray(0, 4)), "RIFF", path);
+		assert.equal(encoder.decode(bytes.subarray(8, 12)), "WEBP", path);
+		assert.equal(encoder.decode(bytes.subarray(12, 16)), "VP8X", path);
+		// The first generated icons have transparent, not opaque, backgrounds.
+		assert.ok((bytes[20] & 0x10) !== 0, path + " must include an alpha channel");
 	}
 });
 
-Deno.test("drawing a 2x2 SVG pickup uses only canvas operations", () => {
+Deno.test("map icons retain the 2x2 tile footprint, with no extra circular badge", () => {
 	const calls = [];
 	const ctx = {
 		save() { calls.push("save"); },
 		restore() { calls.push("restore"); },
 		fillRect(x, y, w, h) { calls.push(["fillRect", x, y, w, h]); },
 		strokeRect(x, y, w, h) { calls.push(["strokeRect", x, y, w, h]); },
-		beginPath() { calls.push("beginPath"); },
-		arc() { calls.push("arc"); },
-		fill() { calls.push("fill"); },
-		stroke() { calls.push("stroke"); },
+		beginPath() { throw new Error("Do not draw an enclosing circle"); },
+		arc() { throw new Error("Do not draw an enclosing circle"); },
 		drawImage() { calls.push("drawImage"); },
 	};
 	drawPowerUpIconOnMap(ctx, 12, 20, "speed", 1000);
 	assert.equal(calls[0], "save");
 	assert.equal(calls.at(-1), "restore");
-	assert.equal(calls.filter((x) => Array.isArray(x) && x[0] === "fillRect").length, 4);
 	assert.ok(calls.some((x) => Array.isArray(x) && x[0] === "strokeRect"));
-	// Invalid packets/types must not draw to the arena.
+	assert.equal(calls.filter((x) => Array.isArray(x) && x[0] === "fillRect").length, 5);
 	const before = calls.length;
 	drawPowerUpIconOnMap(ctx, 12, 20, "unknown", 1000);
 	assert.equal(calls.length, before);

@@ -4,6 +4,7 @@ import { LegacyServerManager } from "./LegacyServerManager.js";
 import { PersistentStorage } from "./PersistentStorage.js";
 import { ServerManager } from "./ServerManager.js";
 import { AdminWebSocketManager } from "./AdminWebSocketManager.js";
+import { AdminApiService } from "./AdminApiService.js";
 
 export class Main {
 	/**
@@ -18,6 +19,7 @@ export class Main {
 		this.legacyServerManager = new LegacyServerManager(this);
 		this.adminWebsocketManager = new AdminWebSocketManager(this, websocketAuthToken);
 		this.authRateLimitManager = new RateLimitManager({ alwaysUseMultiConnectionLimit: true });
+		this.adminApiService = new AdminApiService(this);
 	}
 
 	/**
@@ -26,7 +28,9 @@ export class Main {
 	 */
 	handleRequest(request, info) {
 		const url = new URL(request.url);
-		if (url.pathname == "/servermanager/gameservers" || url.pathname == "/gameservers") {
+		if (url.pathname.startsWith("/api/admin/")) {
+			return this.adminApiService.handleRequest(request, info?.remoteAddr?.hostname || "unknown");
+		} else if (url.pathname == "/servermanager/gameservers" || url.pathname == "/gameservers") {
 			const data = this.servermanager.getServersJson();
 			const response = Response.json(data);
 			response.headers.set("Access-Control-Allow-Origin", "*");

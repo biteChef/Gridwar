@@ -74,7 +74,7 @@ Deno.test("only one random token appears on a safe unclaimed tile and is broadca
 	assert.equal(h.events.length, 1, "repeated ticks must not create another token");
 });
 
-Deno.test("first claim must hold the tile for 30 seconds and awards exactly 0.75 virtual token", () => {
+Deno.test("first claim must hold the tile for 30 seconds and awards exactly 1.00 virtual token", () => {
 	const h = harness();
 	h.spawn();
 	const state = h.capture(1);
@@ -85,16 +85,18 @@ Deno.test("first claim must hold the tile for 30 seconds and awards exactly 0.75
 	h.elapse(29_999);
 	assert.equal(h.awards.length, 0);
 	h.elapse(1);
-	assert.deepEqual(h.awards, [{ id: 1, milliTokens: 750 }]);
+	assert.deepEqual(h.awards, [{ id: 1, milliTokens: 1_000 }]);
 	assert.equal(h.manager.getState().phase, "won");
 	assert.equal(h.manager.location, null);
 	h.sync();
 	h.manager.loop(h.now());
 	assert.equal(h.awards.length, 1, "winning round must never pay twice");
-	assert.equal(TERRITORY_TOKEN_RULES.rewardMilliTokens, 750);
+	assert.equal(TERRITORY_TOKEN_RULES.firstRewardMilliTokens, 1_000);
+	assert.equal(TERRITORY_TOKEN_RULES.stealRewardMilliTokens, 750);
+	assert.equal(TERRITORY_TOKEN_RULES.finalRewardMilliTokens, 500);
 });
 
-Deno.test("stealing the tile restarts a 15-second timer instead of the old 30-second timer", () => {
+Deno.test("second capture requires 15 seconds and awards 0.75 virtual token", () => {
 	const h = harness();
 	h.spawn();
 	h.capture(1);
@@ -109,7 +111,7 @@ Deno.test("stealing the tile restarts a 15-second timer instead of the old 30-se
 	assert.deepEqual(h.awards, [{ id: 2, milliTokens: 750 }]);
 });
 
-Deno.test("the third successful capture is the final chance and a fourth cannot win", () => {
+Deno.test("third successful capture awards 0.50 immediately with no countdown", () => {
 	const h = harness();
 	h.spawn();
 	h.capture(1);
@@ -117,18 +119,36 @@ Deno.test("the third successful capture is the final chance and a fourth cannot 
 	h.capture(2);
 	h.elapse(1_000);
 	const third = h.capture(3);
+	assert.equal(third.phase, "won");
+	assert.equal(third.ownerId, 3);
 	assert.equal(third.captures, 3);
-	assert.equal(third.remainingMs, 15_000);
-	h.elapse(1_000);
-	h.capture(1);
-	assert.equal(h.manager.getState().phase, "expired");
-	assert.equal(h.manager.location, null);
-	assert.deepEqual(h.awards, [], "losing the third hold ends the round without a reward");
+	assert.equal(third.remainingMs, 0);
+	assert.equal(h.manager.location, null, "token is consumed immediately after the third capture");
+	assert.deepEqual(h.awards, [{ id: 3, milliTokens: 500 }]);
+	h.sync();
+	h.manager.loop(h.now());
+	assert.equal(h.awards.length, 1, "callbacks after the third capture cannot award again");
 	h.elapse(TERRITORY_TOKEN_RULES.respawnMs - 1);
 	assert.equal(h.manager.location, null);
 	h.elapse(1);
 	assert.equal(h.manager.getState().phase, "available");
 	assert.equal(h.manager.getState().captures, 0);
+});
+
+Deno.test("neutral ownership after two captures still allows the third claim to win instantly", () => {
+	const h = harness();
+	h.spawn();
+	h.capture(1);
+	h.elapse(500);
+	h.capture(0);
+	h.capture(2);
+	h.elapse(500);
+	h.capture(0);
+	assert.equal(h.manager.getState().captures, 2);
+	const finalState = h.capture(3);
+	assert.equal(finalState.phase, "won");
+	assert.equal(finalState.captures, 3);
+	assert.deepEqual(h.awards, [{ id: 3, milliTokens: 500 }]);
 });
 
 Deno.test("clearing territory interrupts the hold and a later claim is a new attempt", () => {

@@ -1,5 +1,5 @@
 /**
- * All five additional pickups use the original Splix territory rules.
+ * Additional capture-based pickups use the original Splix territory rules.
  * IDs are stable on the wire; don't reorder them without changing the client.
  */
 export const POWER_UP_TYPES = Object.freeze([
@@ -8,6 +8,7 @@ export const POWER_UP_TYPES = Object.freeze([
 	{ id: 3, type: "ghost", title: "Ghost Mode", durationMs: 5_000 },
 	{ id: 4, type: "double", title: "Double Score", durationMs: 15_000 },
 	{ id: 5, type: "repair", title: "Trail Repair", durationMs: 0 },
+	{ id: 6, type: "wall", title: "Wall Shield", durationMs: 0 },
 ]);
 
 export const POWER_UP_RESPAWN_MS = 35_000;
@@ -18,13 +19,15 @@ export class PowerUpState {
 	#expires = { shield: 0, radar: 0, ghost: 0, double: 0 };
 	#shieldCharges = 0;
 	#repairCharges = 0;
+	#wallCharges = 0;
 
 	/** @param {string} type @param {number} now */
 	grant(type, now) {
 		const def = POWER_UP_TYPES.find((item) => item.type == type);
 		if (!def) return false;
-		if (type == "repair") {
-			this.#repairCharges = 1; // No stacking.
+		if (type == "repair" || type == "wall") {
+			if (type == "repair") this.#repairCharges = 1;
+			else this.#wallCharges = 1; // One use, no stacking.
 		} else {
 			this.#expires[type] = now + def.durationMs;
 			if (type == "shield") this.#shieldCharges = 1;
@@ -35,6 +38,7 @@ export class PowerUpState {
 	/** @param {string} type @param {number} now */
 	isActive(type, now) {
 		if (type == "repair") return this.#repairCharges > 0;
+		if (type == "wall") return this.#wallCharges > 0;
 		if (type == "shield") return this.#shieldCharges > 0 && this.#expires.shield > now;
 		return (this.#expires[type] || 0) > now;
 	}
@@ -42,6 +46,7 @@ export class PowerUpState {
 	/** @param {string} type @param {number} now */
 	remainingMs(type, now) {
 		if (type == "repair") return this.#repairCharges > 0 ? 1 : 0;
+		if (type == "wall") return this.#wallCharges > 0 ? 1 : 0;
 		if (!this.isActive(type, now)) return 0;
 		return Math.max(0, Math.ceil(this.#expires[type] - now));
 	}
@@ -63,6 +68,13 @@ export class PowerUpState {
 			return "repair";
 		}
 		return null;
+	}
+
+	/** Consume the Wall Shield only after the server has found a safe sideways escape. */
+	consumeWallShield() {
+		if (!this.#wallCharges) return false;
+		this.#wallCharges = 0;
+		return true;
 	}
 
 	/**
@@ -99,5 +111,6 @@ export class PowerUpState {
 		for (const type of ["shield", "radar", "ghost", "double"]) this.#expires[type] = 0;
 		this.#shieldCharges = 0;
 		this.#repairCharges = 0;
+		this.#wallCharges = 0;
 	}
 }

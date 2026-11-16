@@ -132,6 +132,7 @@ export class PowerUpManager {
 			this.#nextSpawns.set(typeId, now + 5_000);
 			return;
 		}
+		/** @type {Pickup} */
 		const patch = { typeId, ...chosen, owners: [] };
 		patch.owners = this.#readOwners(patch);
 		this.#pickups.set(typeId, patch);

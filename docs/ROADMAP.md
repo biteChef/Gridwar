@@ -40,6 +40,40 @@ Other ongoing work may be on separate branches/PRs. Do not mark it shipped until
 
 **Capacity example:** 1,000 concurrent active players ÷ 50 players/arena = **20 arena instances**, plus spare capacity. This is not the same as 20 physical machines.
 
+## Website & Administration track
+
+The multiplayer-scaling milestones below remain separate. This track turns the existing
+Splix-based game into a managed website without rewriting the game engine.
+
+### Foundation + Admin Dashboard v1 — implemented on a feature branch, awaiting verification
+
+- [x] Create an owner-only administration API separate from player accounts.
+- [x] Configure PBKDF2 password hashing, KV-backed hashed sessions, logout, origin checks and login throttling.
+- [x] Replace the old admin panel with a responsive overview, registered-server configuration and activity log.
+- [x] Show actual monitored-player and server counts, with unmonitored counts clearly labelled.
+- [x] Remove the public development endpoint that returned the raw server-manager control token.
+- [x] Document setup, deployment boundaries and an initial Deno test suite.
+- [ ] Run CI/Deno checks and a browser end-to-end smoke test before merging.
+- [ ] Harden and restrict the legacy admin control WebSocket in all production proxy configurations.
+
+See [ADMIN_FOUNDATION.md](./ADMIN_FOUNDATION.md) and the working branch
+`feature/foundation-admin-v1` for implementation details.
+
+### Foundation v2 — shared persistent player data
+
+- [ ] Design and migrate to PostgreSQL player profiles, sessions, statistics and persistent non-financial rewards.
+- [ ] Keep guest entry working as player accounts migrate off instance-local KV.
+- [ ] Build read-only admin player search and game history views.
+- [ ] Introduce moderation and additional staff roles only after auditable authorization checks.
+- [ ] Add cross-arena leaderboard and event analytics.
+
+### Website & release track
+
+- [ ] Refine the landing page, game onboarding, player profiles and personal statistics.
+- [ ] Integrate matchmaking (see M1–M4 below), clean lobby selection and capacity errors.
+- [ ] Deploy HTTPS/WSS, backups, monitoring, alerting and automated release verification.
+- [ ] Conduct performance/security testing and run a staged public launch.
+
 ## Milestones
 
 ### M0 — Capture the baseline and decisions — **Done for documentation**

@@ -1,6 +1,13 @@
 import { refreshBanner, showFullScreenAd, updateAdlad } from "./ads.js";
 import { initAccountUI } from "./accountUI.js";
 import {
+	POWER_UP_ART,
+	MAP_POWER_UP_TYPES,
+	drawPowerUpIconOnMap,
+	getPowerUpIconPath,
+	preloadPowerUpIcons,
+} from "./powerUpIcons.js";
+import {
 	BLOCKS_ON_SCREEN,
 	DEFAULT_PROTOCOL_VERSION,
 	GLOBAL_SPEED,
@@ -1347,6 +1354,8 @@ function parseInputKey(e) {
 
 //when page is finished loading
 window.onload = function () {
+	preloadPowerUpIcons();
+	initPowerUpHud();
 	mainCanvas = document.getElementById("mainCanvas");
 	ctx = mainCanvas.getContext("2d");
 	minimapCanvas = document.getElementById("minimapCanvas");
@@ -3732,31 +3741,7 @@ function drawSpeedBooster(ctx) {
 	const { x, y } = speedBoosterPos;
 	if (Math.abs(x - camPos[0]) > VIEWPORT_RADIUS + 2 ||
 		Math.abs(y - camPos[1]) > VIEWPORT_RADIUS + 2) return;
-	const pulse = 0.86 + Math.sin(performance.now() * 0.005) * 0.14;
-	ctx.save();
-	ctx.fillStyle = "rgba(255, 195, 55, " + (0.3 * pulse) + ")";
-	ctx.strokeStyle = "#ffe180";
-	ctx.lineWidth = 0.6;
-	for (let dx = 0; dx < 2; dx++) {
-		for (let dy = 0; dy < 2; dy++) {
-			const px = (x + dx) * 10;
-			const py = (y + dy) * 10;
-			ctx.fillRect(px + 1, py + 1, 8, 8);
-			ctx.strokeRect(px + 1, py + 1, 8, 8);
-		}
-	}
-	// A simple vector lightning bolt, centered across the four-tile patch.
-	ctx.fillStyle = "#fff7c4";
-	ctx.beginPath();
-	ctx.moveTo(x * 10 + 11, y * 10 + 2);
-	ctx.lineTo(x * 10 + 6, y * 10 + 11);
-	ctx.lineTo(x * 10 + 10, y * 10 + 11);
-	ctx.lineTo(x * 10 + 9, y * 10 + 19);
-	ctx.lineTo(x * 10 + 15, y * 10 + 9);
-	ctx.lineTo(x * 10 + 11, y * 10 + 9);
-	ctx.closePath();
-	ctx.fill();
-	ctx.restore();
+	drawPowerUpIconOnMap(ctx, x, y, "speed", performance.now());
 }
 
 function updateSpeedBoostHud() {
@@ -3769,54 +3754,64 @@ function updateSpeedBoostHud() {
 	}
 }
 
-const POWER_UP_VISUALS = [
-	{ label: "S", name: "Shield", color: "#4bbaf0" },
-	{ label: "R", name: "Radar", color: "#ab8cf3" },
-	{ label: "G", name: "Ghost", color: "#d4efff" },
-	{ label: "2×", name: "2× Score", color: "#eebf47" },
-	{ label: "+", name: "Repair", color: "#6edf9c" },
-];
+/** Cached HUD elements prevent thousands of new image nodes per minute. */
+let powerUpHudItems = [];
+
+function initPowerUpHud() {
+	const hud = document.getElementById("powerUpHud");
+	if (!hud) return;
+	hud.replaceChildren();
+	powerUpHudItems = MAP_POWER_UP_TYPES.map((type) => {
+		const entry = document.createElement("span");
+		entry.className = "powerup-hud-item";
+		entry.hidden = true;
+		entry.title = POWER_UP_ART[type].name;
+
+		const image = document.createElement("img");
+		image.src = getPowerUpIconPath(type);
+		image.alt = "";
+		image.width = 18;
+		image.height = 18;
+
+		const name = document.createElement("span");
+		name.className = "powerup-hud-label";
+		name.textContent = POWER_UP_ART[type].name;
+
+		const time = document.createElement("span");
+		time.className = "powerup-hud-time";
+		entry.append(image, name, time);
+		hud.appendChild(entry);
+		return { entry, time };
+	});
+}
 
 function drawExtraPowerUps(ctx) {
 	const now = performance.now();
 	for (const patch of powerUpPatches) {
 		if (Math.abs(patch.x - camPos[0]) > VIEWPORT_RADIUS + 3 ||
 			Math.abs(patch.y - camPos[1]) > VIEWPORT_RADIUS + 3) continue;
-		const visual = POWER_UP_VISUALS[patch.typeId - 1];
-		if (!visual) continue;
-		const px = patch.x * 10, py = patch.y * 10;
-		const pulse = 0.24 + 0.09 * Math.sin(now * 0.005 + patch.typeId);
-		ctx.save();
-		ctx.fillStyle = visual.color;
-		ctx.globalAlpha = pulse;
-		ctx.fillRect(px + 1, py + 1, 18, 18);
-		ctx.globalAlpha = 0.95;
-		ctx.strokeStyle = visual.color;
-		ctx.lineWidth = 1;
-		ctx.strokeRect(px + 1, py + 1, 18, 18);
-		ctx.fillStyle = visual.color;
-		ctx.font = "bold 12px sans-serif";
-		ctx.textAlign = "center";
-		ctx.textBaseline = "middle";
-		ctx.fillText(visual.label, px + 10, py + 10);
-		ctx.restore();
+		const type = MAP_POWER_UP_TYPES[patch.typeId - 1];
+		if (!type) continue;
+		drawPowerUpIconOnMap(ctx, patch.x, patch.y, type, now);
 	}
 }
 
 function updatePowerUpHud() {
 	const hud = document.getElementById("powerUpHud");
-	if (!hud) return;
+	if (!hud || powerUpHudItems.length == 0) return;
 	const now = Date.now();
-	const display = [];
-	for (let idx = 0; idx < POWER_UP_VISUALS.length; idx++) {
+	let visibleCount = 0;
+	for (let idx = 0; idx < powerUpHudItems.length; idx++) {
 		const remaining = Math.max(0, powerUpEnds[idx] - now);
-		if (!remaining) continue;
-		const name = POWER_UP_VISUALS[idx].name;
-		const label = idx == 4 ? "ready" : (remaining / 1000).toFixed(1) + "s";
-		display.push(name + ": " + label);
+		const { entry, time } = powerUpHudItems[idx];
+		entry.hidden = remaining <= 0;
+		if (remaining > 0) {
+			visibleCount++;
+			const label = idx == 4 ? "ready" : (remaining / 1000).toFixed(1) + "s";
+			if (time.textContent != label) time.textContent = label;
+		}
 	}
-	hud.hidden = display.length == 0;
-	hud.textContent = display.join(" · ");
+	hud.hidden = visibleCount == 0;
 }
 
 function drawRadarMinimap() {

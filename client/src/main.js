@@ -137,7 +137,7 @@ var lastClientsideMoves = [],
 var mapSize = 2000, closedBecauseOfDeath = false, minimapCtx, beginScreenVisible = true, wsOnOpenTime;
 var speedBoosterPos = null;
 var powerUpPatches = [];
-var powerUpEnds = [0, 0, 0, 0, 0];
+var powerUpEnds = [0, 0, 0, 0, 0, 0];
 var powerUpBonus = 0;
 var radarContacts = [];
 var radarCanvas = null;
@@ -1682,11 +1682,11 @@ function onMessage(evt) {
 		return;
 	}
 	if (data[0] == receiveAction.POWERUP_STATE) {
-		if (data.length !== 11) return;
+		if (data.length !== 13) return;
 		const now = Date.now();
-		for (let idx = 0; idx < 5; idx++) {
+		for (let idx = 0; idx < 6; idx++) {
 			const remaining = bytesToInt(data[1 + idx * 2], data[2 + idx * 2]);
-			powerUpEnds[idx] = idx == 4 ? (remaining > 0 ? Number.MAX_SAFE_INTEGER : 0) : (remaining ? now + remaining : 0);
+			powerUpEnds[idx] = (idx == 4 || idx == 5) ? (remaining > 0 ? Number.MAX_SAFE_INTEGER : 0) : (remaining ? now + remaining : 0);
 		}
 		if (!powerUpEnds[1]) radarContacts = [];
 		return;
@@ -2313,7 +2313,7 @@ function resetAll() {
 	players = [];
 	speedBoosterPos = null;
 	powerUpPatches = [];
-	powerUpEnds = [0, 0, 0, 0, 0];
+	powerUpEnds = [0, 0, 0, 0, 0, 0];
 	powerUpBonus = 0;
 	radarContacts = [];
 	if (radarCtx) radarCtx.clearRect(0, 0, 160, 160);
@@ -3775,6 +3775,7 @@ const POWER_UP_VISUALS = [
 	{ label: "G", name: "Ghost", color: "#d4efff" },
 	{ label: "2×", name: "2× Score", color: "#eebf47" },
 	{ label: "+", name: "Repair", color: "#6edf9c" },
+	{ label: "W", name: "Wall Shield", color: "#f0a36b" },
 ];
 
 function drawExtraPowerUps(ctx) {
@@ -3812,7 +3813,7 @@ function updatePowerUpHud() {
 		const remaining = Math.max(0, powerUpEnds[idx] - now);
 		if (!remaining) continue;
 		const name = POWER_UP_VISUALS[idx].name;
-		const label = idx == 4 ? "ready" : (remaining / 1000).toFixed(1) + "s";
+		const label = (idx == 4 || idx == 5) ? "ready" : (remaining / 1000).toFixed(1) + "s";
 		display.push(name + ": " + label);
 	}
 	hud.hidden = display.length == 0;

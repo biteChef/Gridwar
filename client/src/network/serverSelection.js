@@ -72,7 +72,7 @@ export async function initServerSelection() {
 	}
 
 	if (!selectedEndpoint) {
-		selectedEndpoint = officialEndpoints[0] || unofficialGroup.firstElementChild;
+		selectedEndpoint = officialEndpoints[0] || /** @type {HTMLOptionElement?} */ (unofficialGroup.firstElementChild);
 	}
 
 	if (officialGroup.childElementCount > 0) serverSelectEl.appendChild(officialGroup);

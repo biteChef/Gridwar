@@ -166,6 +166,19 @@ Deno.test("clearing territory interrupts the hold and a later claim is a new att
 	assert.equal(next.remainingMs, 15_000);
 });
 
+Deno.test("instant third capture cannot award if the arena has become solo between ticks", () => {
+	const h = harness();
+	h.spawn();
+	h.capture(1);
+	h.capture(2);
+	// No loop tick between player disconnects and territory fill.
+	h.players.get(1).dead = true;
+	h.players.get(2).dead = true;
+	const third = h.capture(3);
+	assert.equal(third.phase, "expired");
+	assert.deepEqual(h.awards, []);
+});
+
 Deno.test("dead/spectator owners cannot hold or win and a solo arena cannot farm the token", () => {
 	const h = harness();
 	h.spawn();
